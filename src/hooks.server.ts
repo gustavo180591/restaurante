@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { SESSION_COOKIE_NAME, parseSessionToken } from '$lib/auth/session';
 import { prisma } from '$lib/db/prisma';
 
-const PUBLIC_ROUTES = new Set(['/auth/login', '/health']);
+const PUBLIC_ROUTES = new Set(['/', '/auth/login', '/health']);
 const needsAdmin = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export const handle: Handle = async ({ event, resolve }) => {
