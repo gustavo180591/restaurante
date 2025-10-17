@@ -141,10 +141,10 @@
 
 ### 🔄 3.4 Platos
 - [x] `GET /api/platos`
-- [ ] `GET /api/platos/:id`
-- [ ] `POST /api/platos`
-- [ ] `PUT /api/platos/:id`
-- [ ] `DELETE /api/platos/:id`
+- [x] `GET /api/platos/:id`
+- [x] `POST /api/platos`
+- [x] `PUT /api/platos/:id`
+- [x] `DELETE /api/platos/:id`
 
 ### ✅ 3.5 Turnos
 - [x] `GET /api/turnos`
@@ -160,27 +160,27 @@
 ## 🔄 4) Frontend
 
 ### 🔄 4.1 Componentes
-- [ ] ImageUploader (en progreso)
-- [ ] ImageCropper (en progreso)
-- [ ] Formularios de administración
+- [x] ImageUploader
+- [x] ImageCropper
+- [x] Formularios de administración básicos
 
 ### 🔄 4.2 Páginas
-- [ ] Login
-- [ ] Dashboard
-- [ ] Gestión de Platos
-- [ ] Gestión de Menús
-- [ ] Gestión de Cartas
+- [x] Login
+- [x] Dashboard básico
+- [x] Gestión de Platos
+- [x] Gestión de Menús
+- [x] Gestión de Cartas
 
 ## 🔄 5) Despliegue
 
 ### 🔄 5.1 Docker
-- [ ] Configuración de Docker
-- [ ] Docker Compose para desarrollo
-- [ ] Dockerfile para producción
+- [x] Configuración de Docker
+- [x] Docker Compose para desarrollo
+- [x] Dockerfile para producción
 
 ### 🔄 5.2 Variables de entorno
-- [ ] Plantilla .env.example
-- [ ] Documentación de configuración
+- [x] Plantilla .env.example
+- [x] Documentación de configuración básica
 
 ## 📝 Notas adicionales
 

@@ -2,8 +2,6 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { prisma } from '$lib/db/prisma';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { createSessionToken } from '$lib/auth/session';
-import { SESSION_COOKIE_NAME } from '$lib/auth/session';
 import { rateLimit } from '$lib/security/rate-limit';
 
 // Configuración de rate limiting
@@ -45,8 +43,8 @@ export const POST: RequestHandler = async (event) => {
 
     const { dni, nombres, apellidos, email, telefono, usuario, clave } = result.data;
 
-    // Verificar si el DNI ya existe
-    const dniExists = await prisma.usuarios.findFirst({
+    // Verificar si el DNI ya existe en personas
+    const dniExists = await prisma.personas.findFirst({
       where: { dni: { equals: dni, mode: 'insensitive' } }
     });
 
@@ -77,25 +75,40 @@ export const POST: RequestHandler = async (event) => {
     // Hashear la contraseña
     const hashedPassword = await bcrypt.hash(clave, 10);
 
-    // Crear el usuario
-    const user = await prisma.usuarios.create({
-      data: {
-        dni,
-        nombres,
-        apellidos,
-        email,
-        telefono: telefono || null,
-        usuario,
-        clave: hashedPassword,
-        Perfiles_Id_Perfil: 3, // Asignar perfil de cliente por defecto
-        sessionVersion: 1 // Iniciar versión de sesión
-      }
-    });
+    // Usar transacción para asegurar consistencia de datos
+    await prisma.$transaction(async (tx) => {
+      // Crear la persona primero
+      const persona = await tx.personas.create({
+        data: {
+          dni,
+          nombres,
+          Apellidos: apellidos,
+          email,
+          Telefono: telefono || '',
+          genero: 1 // Valor por defecto, ajustar según necesidades
+        }
+      });
 
-    // Crear token de sesión
-    const sessionToken = createSessionToken({
-      id: user.Id_usuario,
-      sessionVersion: user.sessionVersion
+      // Crear el usuario
+      const user = await tx.usuarios.create({
+        data: {
+          usuario,
+          clave: hashedPassword,
+          email,
+          Perfiles_Id_Perfil: 3, // Asignar perfil de cliente por defecto
+          sessionVersion: 1 // Iniciar versión de sesión
+        }
+      });
+
+      // Crear el cliente que vincula persona y usuario
+      const cliente = await tx.clientes.create({
+        data: {
+          Personas_Id_Persona: persona.Id_Persona,
+          Usuarios_Id_usuario: user.Id_usuario
+        }
+      });
+
+      return { persona, user, cliente };
     });
 
     // Devolver respuesta exitosa sin iniciar sesión automáticamente
@@ -111,13 +124,14 @@ export const POST: RequestHandler = async (event) => {
 
   } catch (error) {
     console.error('Error en registro:', error);
-    
-    if (error.status === 429) {
+
+    if (error && typeof error === 'object' && 'status' in error && error.status === 429) {
+      const rateLimitError = error as { status: number; message: string; retryAfter?: string };
       return json(
-        { error: error.message },
-        { 
+        { error: rateLimitError.message },
+        {
           status: 429,
-          headers: { 'Retry-After': error.retryAfter || '3600' }
+          headers: { 'Retry-After': rateLimitError.retryAfter || '3600' }
         }
       );
     }

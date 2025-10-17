@@ -61,7 +61,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   // Verificar permisos de administrador
-  if (needsAdmin.has(event.request.method) && event.locals.user?.role !== 'Admin') {
+  if (needsAdmin.has(event.request.method) && event.locals.user?.role !== 'Admin' && !pathname.startsWith('/api/auth/register')) {
     return new Response(
       JSON.stringify({ error: 'No autorizado' }), 
       { 
