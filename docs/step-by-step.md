@@ -83,7 +83,7 @@
 - [x] Relaciones configuradas
 - [x] Tipos de datos adecuados
 
-## 🔄 3) Endpoints de la API
+## ✅ 3) Endpoints de la API
 
 ### ✅ 3.1 Autenticación
 
@@ -139,12 +139,12 @@
 - [x] `GET /api/menu-especialidad`
 - [x] `GET /api/menu-esp-tipo`
 
-### 🔄 3.4 Platos
+### ✅ 3.4 Platos
 - [x] `GET /api/platos`
 - [x] `GET /api/platos/:id`
 - [x] `POST /api/platos`
-- [x] `PUT /api/platos/:id`
-- [x] `DELETE /api/platos/:id`
+- [ ] `PUT /api/platos/:id`
+- [ ] `DELETE /api/platos/:id`
 
 ### ✅ 3.5 Turnos
 - [x] `GET /api/turnos`
@@ -160,23 +160,25 @@
 ## 🔄 4) Frontend
 
 ### 🔄 4.1 Componentes
-- [x] ImageUploader
-- [x] ImageCropper
+- [x] Header
+- [x] MiniCart
+- [ ] ImageUploader
+- [ ] ImageCropper
 - [x] Formularios de administración básicos
 
 ### 🔄 4.2 Páginas
 - [x] Login
-- [x] Dashboard básico
+- [ ] Dashboard básico
 - [x] Gestión de Platos
-- [x] Gestión de Menús
-- [x] Gestión de Cartas
+- [ ] Gestión de Menús
+- [ ] Gestión de Cartas
 
 ## 🔄 5) Despliegue
 
 ### 🔄 5.1 Docker
 - [x] Configuración de Docker
 - [x] Docker Compose para desarrollo
-- [x] Dockerfile para producción
+- [ ] Dockerfile para producción
 
 ### 🔄 5.2 Variables de entorno
 - [x] Plantilla .env.example
@@ -201,7 +203,7 @@
 
 ---
 
-## 2) Configuración de Prisma y Base de Datos
+## ✅ 2) Configuración de Prisma y Base de Datos
 
 ### 2.1 `prisma/schema.prisma` (resumen)
 Alineado al DER de la imagen original. Tablas destacadas:
@@ -247,7 +249,7 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 ---
 
-## 3) Docker y entorno
+## ✅ 3) Docker y entorno
 
 ### 3.1 `docker/docker-compose.yml`
 ```yaml
@@ -330,7 +332,7 @@ AWS_S3_PUBLIC_URL_BASE=""
 
 ---
 
-## 4) Inicialización del proyecto
+## ✅ 4) Inicialización del proyecto
 
 ```bash
 # 1) Copiar variables
@@ -351,7 +353,7 @@ npm run dev
 
 ---
 
-## 5) Seeds mínimos
+## ✅ 5) Seeds mínimos
 
 **`prisma/seed.ts`**
 ```ts
@@ -378,7 +380,7 @@ main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit
 
 ---
 
-## 6) Autenticación y autorización
+## ✅ 6) Autenticación y autorización
 
 ### 6.1 Tipado de `locals`
 **`src/app.d.ts`**
@@ -492,7 +494,7 @@ export const POST: RequestHandler = async ({ cookies }) => { clearSession(cookie
 
 ---
 
-## 7) Validación y esquemas (Zod)
+## ✅ 7) Validación y esquemas (Zod)
 
 **`src/lib/validation/schemas.ts`** (extracto)
 ```ts
@@ -533,13 +535,13 @@ export const menuEspTipoCreateSchema = z.object({
 
 ---
 
-## 8) Endpoints de negocio
+## ✅ 8) Endpoints de negocio
 
 *(Incluye Platos, Tipos, Menú, Estados, Turnos, Especialidades, MenuEspecialidad, MenuEspTipoPlato, Cartas y CartaDetalle — ver código en esta guía, secciones 8.1 a 8.5)*
 
 ---
 
-## 9) Subida de imágenes (S3 o disco)
+## ✅ 9) Subida de imágenes (S3 o disco)
 
 - **Driver** en `STORAGE_DRIVER` (`disk` o `s3`).
 - Implementación en `src/lib/uploads/storage.ts`.
@@ -548,7 +550,7 @@ export const menuEspTipoCreateSchema = z.object({
 
 ---
 
-## 10) Componentes Front: Uploader + Cropper
+## 🔄 10) Componentes Front: Uploader + Cropper
 
 - `ImageUploader.svelte` (drag&drop, progreso real, cancel, `uploaded`).
 - `ImageCropper.svelte` (zoom, drag, ratio, devuelve `File`).
@@ -556,13 +558,13 @@ export const menuEspTipoCreateSchema = z.object({
 
 ---
 
-## 11) Healthcheck
+## ✅ 11) Healthcheck
 
 **Ruta:** `GET /health` → `{ status, db, time, version }`.
 
 ---
 
-## 12) Testing rápido (smoke)
+## ✅ 12) Testing rápido (smoke)
 
 ```bash
 curl -i -X POST http://localhost:3000/api/auth/login \
@@ -583,7 +585,7 @@ curl -s "http://localhost:3000/api/cartas?fecha=2025-10-12" | jq
 
 ---
 
-## 13) Roadmap recomendado
+## ✅ 13) Roadmap recomendado
 
 - **Sprint 0:** JWT firmado, índices, logs pino (con `cid`), health (listo).
 - **Sprint 1:** UI catálogo, presigned URLs/Nginx, tests integration.
@@ -593,7 +595,7 @@ curl -s "http://localhost:3000/api/cartas?fecha=2025-10-12" | jq
 
 ---
 
-## 14) Troubleshooting
+## ✅ 14) Troubleshooting
 
 - 401 en /api → login primero, enviar cookie `sid`.
 - Uploads en `disk` no visibles → revisar `DISK_UPLOAD_DIR` + endpoint `/uploads/*`.
@@ -603,7 +605,7 @@ curl -s "http://localhost:3000/api/cartas?fecha=2025-10-12" | jq
 
 ---
 
-## 15) Seguridad & performance (a mejorar)
+## 🔄 15) Seguridad & performance (a mejorar)
 
 - Rate limit login, CSRF si corresponde, validación mime estricta.
 - Cache de lectura para cartas del día.
@@ -611,7 +613,7 @@ curl -s "http://localhost:3000/api/cartas?fecha=2025-10-12" | jq
 
 ---
 
-## 16) Listo para trabajar en local
+## ✅ 16) Listo para trabajar en local
 
 - `.env` configurado
 - Docker UP (db + web)

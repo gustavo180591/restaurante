@@ -1,80 +1,81 @@
-# Base stage for development and building
+# Dockerfile de producción para SvelteKit
 FROM node:20-alpine AS base
 
-# Install system dependencies
-RUN apk add --no-cache python3 make g++
+# Instalar dependencias del sistema
+RUN apk add --no-cache dumb-init
 
-# Set working directory
+# Establecer directorio de trabajo
 WORKDIR /app
 
-# Install dependencies first for better caching
+# Instalar dependencias (para mejor cacheo)
 FROM base AS deps
 WORKDIR /app
 
-# Copy package files
+# Copiar archivos de paquetes
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm install --legacy-peer-deps --no-audit --progress=false
+# Instalar dependencias
+RUN npm ci --only=production --no-audit --no-fund
 
-# Build the application
+# Construir la aplicación
 FROM base AS builder
 WORKDIR /app
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Copiar archivos de configuración primero
+COPY package.json package-lock.json* ./
+COPY svelte.config.js ./
+COPY vite.config.ts ./
+COPY tsconfig.json ./
 
-# Copy application code
+# Instalar todas las dependencias (incluyendo dev dependencies para el build)
+RUN npm ci --no-audit --no-fund
+
+# Copiar código fuente
 COPY . .
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-# Build the application
+# Construir la aplicación
 RUN npm run build
 
-# Production image
+# Imagen de producción
 FROM base AS runner
 WORKDIR /app
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+# Crear usuario no-root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 sveltekit
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S -u 1001 nextjs && \
-    chown -R nextjs:nodejs /app
+# Copiar dependencias de producción desde deps
+COPY --from=deps --chown=sveltekit:nodejs /app/node_modules ./node_modules
 
-# Create necessary directories
-RUN mkdir -p .next/static && \
-    mkdir -p public 2>/dev/null || :
+# Copiar archivos de configuración necesarios
+COPY --from=builder --chown=sveltekit:nodejs /app/package.json ./
+COPY --from=builder --chown=sveltekit:nodejs /app/svelte.config.js ./
+COPY --from=builder --chown=sveltekit:nodejs /app/vite.config.ts ./
 
-# Copy necessary files from builder
-COPY --from=builder --chown=nextjs:nodejs /app/package.json .
+# Copiar aplicación construida
+COPY --from=builder --chown=sveltekit:nodejs /app/build ./
+COPY --from=builder --chown=sveltekit:nodejs /app/prisma ./prisma
 
-# Copy next.config.js if it exists
-RUN if [ -f /app/next.config.js ]; then \
-      cp /app/next.config.js .; \
-    fi
+# Crear directorio para archivos subidos
+RUN mkdir -p ./storage/uploads && chown -R sveltekit:nodejs ./storage
 
-# Copy public directory if it exists
-RUN if [ -d /app/public ]; then \
-      cp -r /app/public/. ./public/; \
-    fi
+# Cambiar al usuario no-root
+USER sveltekit
 
-# Copy build output
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/ .
-RUN if [ -d /app/.next/static ]; then \
-      cp -r /app/.next/static/ ./.next/static/; \
-    fi
-
-# Switch to non-root user
-USER nextjs
-
-# Expose port
+# Exponer puerto
 EXPOSE 3000
 
-# Start the application
-CMD ["node", "server.js"]
+# Variables de entorno para producción
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOST=0.0.0.0
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Usar dumb-init para manejar señales correctamente
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+# Iniciar la aplicación
+CMD ["node", "index.js"]

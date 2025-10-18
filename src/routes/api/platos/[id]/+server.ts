@@ -1,323 +1,484 @@
 import { prisma } from '$lib/db/prisma';
-import { error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
+import { platoUpdateSchema } from '$lib/validation/schemas';
 import type { RequestHandler } from './$types';
 
-// Esquema de validación para la actualización de platos
-const updatePlatoSchema = z.object({
-  nombre: z.string().min(3, 'El nombre debe tener al menos 3 caracteres').max(255).optional(),
-  descripcion: z.string().optional().nullable(),
-  precio: z.number().min(0, 'El precio no puede ser negativo').optional(),
-  activo: z.boolean().optional(),
-  fotoId: z.number().int().positive().optional().nullable(),
-  tiposPlato: z.array(z.number().int().positive()).min(1, 'Debe seleccionar al menos un tipo de plato').optional(),
-  especialidades: z.array(z.number().int().positive()).optional()
-}).refine(data => {
-  // Al menos un campo debe ser proporcionado para la actualización
-  return Object.keys(data).length > 0;
-}, {
-  message: 'Debe proporcionar al menos un campo para actualizar',
-  path: ['general']
-});
-
-// Importar tipos de Prisma
-import type { Platos } from '@prisma/client';
-
-// Interfaz extendida para incluir relaciones
-type PlatoConRelaciones = Omit<Platos, 'Precio'> & {
-  Precio: number | { toNumber: () => number };
-  foto: {
-    Id_Foto: number;
-    Ruta: string;
-  } | null;
-  Platos_has_MenuEspTipoPlato: Array<{
-    Id_PlatoCarta: string;
-    Platos_Id_Plato: number;
-    MenuEspTipoPlato_Id_MenuEspTipoPlato: number;
-    menuEspTipo: {
-      Id_MenuEspTipoPlato: number;
-      tipoPlato: {
-        Id_TipoPlato: number;
-        NombreTipo: string;
-      } | null;
-      menuEspecialidad: {
-        Id_MenuEspecialidad: number;
-        especialidad: {
-          Id_especialidad: number;
-          NombreEspecialidad: string;
-        } | null;
-      } | null;
-    };
-  }>;
-};
-
-export const GET: RequestHandler = async ({ params, locals }) => {
-  // Verificar autenticación
-  if (!locals.user) {
-    throw error(401, 'No autenticado');
-  }
-
-  const platoId = parseInt(params.id);
-  
-  // Validar que el ID sea un número válido
-  if (isNaN(platoId)) {
-    throw error(400, 'ID de plato no válido');
-  }
-
+// Obtener un producto específico por ID (público)
+export const GET: RequestHandler = async ({ params }) => {
   try {
-    // Buscar el plato con sus relaciones
-    const plato = await getPlatoWithRelations(platoId);
+    const { id } = params;
 
-    // Si no se encuentra el plato, devolver 404
-    if (!plato) {
-      throw error(404, 'Plato no encontrado');
+    // Validar que el ID sea un número
+    const productoId = parseInt(id);
+    if (isNaN(productoId)) {
+      throw error(400, 'ID de producto inválido');
     }
 
-    return new Response(JSON.stringify(formatPlatoResponse(plato)), {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-  } catch (err) {
-    console.error('Error al obtener el plato:', err);
-    throw error(500, 'Error interno del servidor');
-  }
-};
-
-// Función auxiliar para formatear la respuesta del plato
-const formatPlatoResponse = (plato: PlatoConRelaciones) => {
-  const tipos = plato.Platos_has_MenuEspTipoPlato
-    .filter(p => p.menuEspTipo?.tipoPlato) // Filtrar relaciones con tipoPlato nulo
-    .map(p => ({
-      id: p.menuEspTipo!.tipoPlato!.Id_TipoPlato,
-      nombre: p.menuEspTipo!.tipoPlato!.NombreTipo
-    }));
-
-  const especialidades = plato.Platos_has_MenuEspTipoPlato
-    .filter(p => p.menuEspTipo?.menuEspecialidad?.especialidad)
-    .map(p => ({
-      id: p.menuEspTipo!.menuEspecialidad!.especialidad!.Id_especialidad,
-      nombre: p.menuEspTipo!.menuEspecialidad!.especialidad!.NombreEspecialidad
-    }));
-
-  // Eliminar duplicados
-  const tiposUnicos = [...new Map(tipos.map(item => [item.id, item])).values()];
-  const especialidadesUnicas = [...new Map(especialidades.map(item => [item.id, item])).values()];
-
-  // Convertir Precio a número si es un objeto Decimal
-  const precio = typeof plato.Precio === 'number' ? plato.Precio : plato.Precio.toNumber();
-
-  return {
-    id: plato.Id_Plato,
-    nombre: plato.NombrePlato,
-    descripcion: plato.Descripcion,
-    precio,
-    activo: plato.Activo,
-    tipos: tiposUnicos,
-    especialidades: especialidadesUnicas,
-    foto: plato.foto ? {
-      id: plato.foto.Id_Foto,
-      ruta: plato.foto.Ruta
-    } : null,
-    createdAt: plato.createdAt,
-    updatedAt: plato.updatedAt
-  };
-};
-
-// Función para obtener un plato con sus relaciones
-const getPlatoWithRelations = async (platoId: number): Promise<PlatoConRelaciones | null> => {
-  const plato = await prisma.platos.findUnique({
-    where: { Id_Plato: platoId },
-    include: {
-      foto: true,
-      Platos_has_MenuEspTipoPlato: {
-        include: {
-          menuEspTipo: {
-            include: {
-              tipoPlato: true,
-              menuEspecialidad: {
-                include: {
-                  especialidad: true
+    // Obtener el producto con toda su información
+    const producto = await prisma.platos.findUnique({
+      where: {
+        Id_Plato: productoId,
+        Activo: true // Solo productos activos
+      },
+      include: {
+        foto: true,
+        Platos_has_MenuEspTipoPlato: {
+          include: {
+            menuEspTipo: {
+              include: {
+                tipoPlato: true,
+                menuEspecialidad: {
+                  include: {
+                    especialidad: true,
+                    turno: true
+                  }
                 }
               }
             }
           }
         }
       }
-    }
-  });
+    });
 
-  if (!plato) return null;
-
-  // Mapear a la interfaz PlatoConRelaciones
-  return {
-    ...plato,
-    Platos_has_MenuEspTipoPlato: plato.Platos_has_MenuEspTipoPlato.map(rel => ({
-      Id_PlatoCarta: rel.Id_PlatoCarta,
-      Platos_Id_Plato: rel.Platos_Id_Plato,
-      MenuEspTipoPlato_Id_MenuEspTipoPlato: rel.MenuEspTipoPlato_Id_MenuEspTipoPlato,
-      menuEspTipo: {
-        Id_MenuEspTipoPlato: rel.menuEspTipo.Id_MenuEspTipoPlato,
-        tipoPlato: rel.menuEspTipo.tipoPlato ? {
-          Id_TipoPlato: rel.menuEspTipo.tipoPlato.Id_TipoPlato,
-          NombreTipo: rel.menuEspTipo.tipoPlato.NombreTipo
-        } : null,
-        menuEspecialidad: rel.menuEspTipo.menuEspecialidad ? {
-          Id_MenuEspecialidad: rel.menuEspTipo.menuEspecialidad.Id_MenuEspecialidad,
-          especialidad: rel.menuEspTipo.menuEspecialidad.especialidad
-        } : null
-      }
-    }))
-  };
-};
-
-// Actualizar un plato existente
-export const PUT: RequestHandler = async ({ request, params, locals }) => {
-  if (!locals.user) throw error(401, 'No autenticado');
-
-  const platoId = Number(params.id);
-  if (Number.isNaN(platoId)) throw error(400, 'ID de plato no válido');
-
-  const body = await request.json();
-  const result = updatePlatoSchema.safeParse(body);
-  if (!result.success) {
-    return new Response(
-      JSON.stringify({ error: 'Datos de entrada inválidos', details: result.error.format() }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const { nombre, descripcion, precio, activo, fotoId, tiposPlato, especialidades } = result.data;
-
-  const platoExistente = await prisma.platos.findUnique({ where: { Id_Plato: platoId } });
-  if (!platoExistente) throw error(404, 'Plato no encontrado');
-
-  const platoActualizado = await prisma.$transaction(async (tx) => {
-    // 1) Datos básicos
-    const updateData: {
-      NombrePlato?: string;
-      Descripcion?: string | null;
-      Precio?: number;
-      Activo?: boolean;
-      Fotos_Id_Foto?: number | null;
-    } = {};
-
-    if (nombre !== undefined) updateData.NombrePlato = nombre;
-    if (descripcion !== undefined) updateData.Descripcion = descripcion;
-    if (precio !== undefined) updateData.Precio = precio;
-    if (activo !== undefined) updateData.Activo = activo;
-    if (fotoId !== undefined) updateData.Fotos_Id_Foto = fotoId;
-
-    if (Object.keys(updateData).length > 0) {
-      await tx.platos.update({ where: { Id_Plato: platoId }, data: updateData });
+    if (!producto) {
+      throw error(404, 'Producto no encontrado');
     }
 
-    // 2) Relaciones (opcional)
-    if (tiposPlato || especialidades) {
-      // limpiamos todo y volvemos a crear (simple y claro)
-      await tx.platos_has_MenuEspTipoPlato.deleteMany({ where: { Platos_Id_Plato: platoId } });
+    // Formatear la respuesta
+    const tipos = [...new Set(producto.Platos_has_MenuEspTipoPlato.map((p: any) => ({
+      id: p.menuEspTipo.tipoPlato.Id_TipoPlato,
+      nombre: p.menuEspTipo.tipoPlato.NombreTipo
+    })))];
 
-      if (tiposPlato && tiposPlato.length > 0) {
-        // buscamos las combinaciones válidas de MenuEspTipoPlato
-        const rels: { Id_MenuEspTipoPlato: number }[] = [];
+    const especialidades = [...new Set(
+      producto.Platos_has_MenuEspTipoPlato
+        .filter((p: any) => p.menuEspTipo.menuEspecialidad)
+        .map((p: any) => ({
+          id: p.menuEspTipo.menuEspecialidad.especialidad.Id_especialidad,
+          nombre: p.menuEspTipo.menuEspecialidad.especialidad.NombreEspecialidad
+        }))
+    )];
 
-        for (const tipoId of tiposPlato) {
-          if (especialidades && especialidades.length > 0) {
-            // por cada especialidad pedida
-            const found = await tx.menuEspTipoPlato.findMany({
-              where: {
-                TipoPlato_Id_TipoPlato: tipoId,
-                // Usar camelCase en la relación:
-                menuEspecialidad: {
-                  // si tu modelo tiene Turnos también, podés agregar el filtro acá
-                  Especialidades_Id_especialidad: { in: especialidades }
+    const turnos = [...new Set(
+      producto.Platos_has_MenuEspTipoPlato
+        .filter((p: any) => p.menuEspTipo.menuEspecialidad)
+        .map((p: any) => ({
+          id: p.menuEspTipo.menuEspecialidad.turno.Id_Turno,
+          nombre: p.menuEspTipo.menuEspecialidad.turno.Nombre,
+          horaInicio: p.menuEspTipo.menuEspecialidad.turno.HoraInicio,
+          horaFin: p.menuEspTipo.menuEspecialidad.turno.HoraFin,
+          descripcion: p.menuEspTipo.menuEspecialidad.turno.Descripcion
+        }))
+    )];
+
+    const productoFormateado = {
+      id: producto.Id_Plato,
+      nombre: producto.NombrePlato,
+      descripcion: producto.Descripcion,
+      precio: producto.Precio,
+      foto: producto.foto ? {
+        id: producto.foto.Id_Foto,
+        ruta: producto.foto.Ruta
+      } : null,
+      tipos,
+      especialidades,
+      turnos,
+      disponible: producto.Activo,
+      createdAt: producto.createdAt,
+      updatedAt: producto.updatedAt
+    };
+
+    // Obtener productos relacionados (misma categoría o especialidad)
+    const productosRelacionados = await prisma.platos.findMany({
+      where: {
+        Activo: true,
+        Id_Plato: { not: productoId }, // Excluir el producto actual
+        OR: [
+          // Mismo tipo de plato
+          {
+            Platos_has_MenuEspTipoPlato: {
+              some: {
+                menuEspTipo: {
+                  tipoPlato: {
+                    Id_TipoPlato: {
+                      in: tipos.map((t: any) => t.id)
+                    }
+                  }
                 }
-              },
-              select: { Id_MenuEspTipoPlato: true }
-            });
-            rels.push(...found);
-          } else {
-            // si no enviaron especialidades, asociamos a TODOS los contextos de ese tipo
-            const found = await tx.menuEspTipoPlato.findMany({
-              where: { TipoPlato_Id_TipoPlato: tipoId },
-              select: { Id_MenuEspTipoPlato: true }
-            });
-            rels.push(...found);
+              }
+            }
+          },
+          // Misma especialidad
+          {
+            Platos_has_MenuEspTipoPlato: {
+              some: {
+                menuEspTipo: {
+                  menuEspecialidad: {
+                    especialidad: {
+                      Id_especialidad: {
+                        in: especialidades.map((e: any) => e.id)
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      include: {
+        foto: true,
+        Platos_has_MenuEspTipoPlato: {
+          include: {
+            menuEspTipo: {
+              include: {
+                tipoPlato: true,
+                menuEspecialidad: {
+                  include: {
+                    especialidad: true
+                  }
+                }
+              }
+            }
           }
         }
+      },
+      take: 4, // Máximo 4 productos relacionados
+      orderBy: {
+        Precio: 'asc' // Ordenar por precio ascendente
+      }
+    });
 
-        // crear los vínculos en la tabla puente (requiere Id_PlatoCarta)
-        const dataCreate = rels.map((r) => ({
-          Id_PlatoCarta: `${platoId}-${r.Id_MenuEspTipoPlato}`,
-          Platos_Id_Plato: platoId,
-          MenuEspTipoPlato_Id_MenuEspTipoPlato: r.Id_MenuEspTipoPlato
-        }));
+    const relacionadosFormateados = productosRelacionados.map((p: any) => {
+      const tiposRel = [...new Set(p.Platos_has_MenuEspTipoPlato.map((r: any) => ({
+        id: r.menuEspTipo.tipoPlato.Id_TipoPlato,
+        nombre: r.menuEspTipo.tipoPlato.NombreTipo
+      })))];
 
-        if (dataCreate.length > 0) {
-          await tx.platos_has_MenuEspTipoPlato.createMany({ data: dataCreate });
+      const especialidadesRel = [...new Set(
+        p.Platos_has_MenuEspTipoPlato
+          .filter((r: any) => r.menuEspTipo.menuEspecialidad)
+          .map((r: any) => ({
+            id: r.menuEspTipo.menuEspecialidad.especialidad.Id_especialidad,
+            nombre: r.menuEspTipo.menuEspecialidad.especialidad.NombreEspecialidad
+          }))
+      )];
+
+      return {
+        id: p.Id_Plato,
+        nombre: p.NombrePlato,
+        descripcion: p.Descripcion,
+        precio: p.Precio,
+        foto: p.foto ? {
+          id: p.foto.Id_Foto,
+          ruta: p.foto.Ruta
+        } : null,
+        tipos: tiposRel,
+        especialidades: especialidadesRel,
+        disponible: p.Activo
+      };
+    });
+
+    return json({
+      producto: productoFormateado,
+      relacionados: relacionadosFormateados
+    });
+
+  } catch (err: any) {
+    console.error('Error al obtener el producto:', err);
+
+    if (err.status) {
+      throw err; // Re-lanzar errores conocidos
+    }
+
+    throw error(500, 'Error interno del servidor');
+  }
+};
+
+// Actualizar un plato específico
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
+  // Verificar autenticación y permisos
+  if (!locals.user) {
+    throw error(401, 'No autenticado');
+  }
+
+  try {
+    const id = parseInt(params.id);
+    if (isNaN(id)) {
+      throw error(400, 'ID de plato inválido');
+    }
+
+    // Verificar que el plato existe
+    const platoExistente = await prisma.platos.findUnique({
+      where: { Id_Plato: id },
+      include: {
+        Platos_has_MenuEspTipoPlato: {
+          include: {
+            menuEspTipo: {
+              include: {
+                tipoPlato: true,
+                MenuEspecialidad: {
+                  include: {
+                    especialidad: true
+                  }
+                }
+              }
+            }
+          }
         }
+      }
+    });
+
+    if (!platoExistente) {
+      throw error(404, 'Plato no encontrado');
+    }
+
+    // Validar datos de entrada
+    const body = await request.json();
+    const result = platoUpdateSchema.safeParse(body);
+
+    if (!result.success) {
+      return new Response(
+        JSON.stringify({
+          error: 'Datos de entrada inválidos',
+          details: result.error.format()
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { nombre, descripcion, precio, activo, fotoId, tiposPlato, especialidades } = result.data;
+
+    // Verificar que los tipos de plato existan si se proporcionan
+    if (tiposPlato) {
+      const tiposExistentes = await prisma.tipoPlato.findMany({
+        where: { Id_TipoPlato: { in: tiposPlato } }
+      });
+      if (tiposExistentes.length !== tiposPlato.length) {
+        throw error(400, 'Uno o más tipos de plato no existen');
       }
     }
 
-    // 3) Devolver el plato con relaciones
-    return getPlatoWithRelations(platoId);
-  });
+    // Verificar que las especialidades existan si se proporcionan
+    if (especialidades) {
+      const especialidadesExistentes = await prisma.especialidades.findMany({
+        where: { Id_especialidad: { in: especialidades } }
+      });
+      if (especialidadesExistentes.length !== especialidades.length) {
+        throw error(400, 'Una o más especialidades no existen');
+      }
+    }
 
-  return new Response(JSON.stringify(formatPlatoResponse(platoActualizado!)), {
-    headers: { 'Content-Type': 'application/json' }
-  });
+    // Actualizar el plato en una transacción
+    const platoActualizado = await prisma.$transaction(async (prisma) => {
+      // 1. Actualizar los campos básicos del plato
+      const updatedPlato = await prisma.platos.update({
+        where: { Id_Plato: id },
+        data: {
+          ...(nombre && { NombrePlato: nombre }),
+          ...(descripcion !== undefined && { Descripcion: descripcion }),
+          ...(precio !== undefined && { Precio: precio }),
+          ...(activo !== undefined && { Activo: activo }),
+          ...(fotoId !== undefined && { Fotos_Id_Foto: fotoId })
+        }
+      });
+
+      // 2. Si se proporcionan nuevos tipos o especialidades, actualizar las relaciones
+      if (tiposPlato || especialidades) {
+        // Eliminar relaciones existentes
+        await prisma.platos_has_MenuEspTipoPlato.deleteMany({
+          where: { Platos_Id_Plato: id }
+        });
+
+        // Crear nuevas relaciones si se proporcionan tipos
+        if (tiposPlato && tiposPlato.length > 0) {
+          const nuevasRelaciones = [];
+
+          for (const tipoId of tiposPlato) {
+            if (especialidades && especialidades.length > 0) {
+              for (const especialidadId of especialidades) {
+                // Buscar o crear MenuEspTipoPlato
+                const menuEspTipo = await prisma.menuEspTipoPlato.upsert({
+                  where: {
+                    TipoPlato_Id_TipoPlato_MenuEspecialidad_Id_MenuEspecialidad_TurnosMenu_Id_Turno: {
+                      TipoPlato_Id_TipoPlato: tipoId,
+                      MenuEspecialidad_Id_MenuEspecialidad_TurnosMenu_Id_Turno: {
+                        Especialidad_Id_especialidad: especialidadId,
+                        TurnosMenu_Id_Turno: 1 // Asumiendo turno por defecto
+                      }
+                    }
+                  },
+                  update: {},
+                  create: {
+                    TipoPlato: { connect: { Id_TipoPlato: tipoId } },
+                    MenuEspecialidad: {
+                      connect: {
+                        Especialidad_Id_especialidad_TurnosMenu_Id_Turno: {
+                          Especialidad_Id_especialidad: especialidadId,
+                          TurnosMenu_Id_Turno: 1
+                        }
+                      }
+                    }
+                  }
+                });
+
+                nuevasRelaciones.push({
+                  Platos_Id_Plato: id,
+                  MenuEspTipoPlato_Id_MenuEspTipoPlato: menuEspTipo.Id_MenuEspTipoPlato
+                });
+              }
+            } else {
+              // Sin especialidades
+              const menuEspTipo = await prisma.menuEspTipoPlato.upsert({
+                where: {
+                  TipoPlato_Id_TipoPlato_MenuEspecialidad_Id_MenuEspecialidad_TurnosMenu_Id_Turno: {
+                    TipoPlato_Id_TipoPlato: tipoId,
+                    MenuEspecialidad_Id_MenuEspecialidad_TurnosMenu_Id_Turno: {
+                      Especialidad_Id_especialidad: 0, // Sin especialidad
+                      TurnosMenu_Id_Turno: 0
+                    }
+                  }
+                },
+                update: {},
+                create: {
+                  TipoPlato: { connect: { Id_TipoPlato: tipoId } }
+                }
+              });
+
+              nuevasRelaciones.push({
+                Platos_Id_Plato: id,
+                MenuEspTipoPlato_Id_MenuEspTipoPlato: menuEspTipo.Id_MenuEspTipoPlato
+              });
+            }
+          }
+
+          // Crear las relaciones
+          await Promise.all(nuevasRelaciones.map(rel =>
+            prisma.platos_has_MenuEspTipoPlato.create({
+              data: {
+                Id_PlatoCarta: `plato_${id}_${rel.MenuEspTipoPlato_Id_MenuEspTipoPlato}_${Date.now()}`,
+                Platos_Id_Plato: rel.Platos_Id_Plato,
+                MenuEspTipoPlato_Id_MenuEspTipoPlato: rel.MenuEspTipoPlato_Id_MenuEspTipoPlato
+              }
+            })
+          ));
+        }
+      }
+
+      return updatedPlato;
+    });
+
+    // Obtener el plato actualizado con relaciones para la respuesta
+    const platoConRelaciones = await prisma.platos.findUnique({
+      where: { Id_Plato: id },
+      include: {
+        foto: true,
+        Platos_has_MenuEspTipoPlato: {
+          include: {
+            menuEspTipo: {
+              include: {
+                tipoPlato: true,
+                MenuEspecialidad: {
+                  include: {
+                    especialidad: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!platoConRelaciones) {
+      throw error(500, 'Error al recuperar el plato actualizado');
+    }
+
+    // Formatear la respuesta
+    const tipos = [...new Set(
+      platoConRelaciones.Platos_has_MenuEspTipoPlato.map(p => ({
+        id: p.menuEspTipo.tipoPlato.Id_TipoPlato,
+        nombre: p.menuEspTipo.tipoPlato.NombreTipo
+      }))
+    )];
+
+    const especialidadesUnicas = [...new Set(
+      platoConRelaciones.Platos_has_MenuEspTipoPlato
+        .filter(p => p.menuEspTipo.MenuEspecialidad)
+        .map(p => ({
+          id: p.menuEspTipo.MenuEspecialidad.especialidad.Id_especialidad,
+          nombre: p.menuEspTipo.MenuEspecialidad.especialidad.NombreEspecialidad
+        }))
+    )];
+
+    const response = {
+      id: platoConRelaciones.Id_Plato,
+      nombre: platoConRelaciones.NombrePlato,
+      descripcion: platoConRelaciones.Descripcion,
+      precio: platoConRelaciones.Precio,
+      activo: platoConRelaciones.Activo,
+      foto: platoConRelaciones.foto ? {
+        id: platoConRelaciones.foto.Id_Foto,
+        ruta: platoConRelaciones.foto.Ruta
+      } : null,
+      tipos,
+      especialidades: especialidadesUnicas,
+      updatedAt: platoConRelaciones.updatedAt
+    };
+
+    return json(response);
+
+  } catch (err) {
+    console.error('Error al actualizar el plato:', err);
+    
+    if (err.status && err.status < 500) {
+      throw err; // Re-lanzar errores de validación
+    }
+    
+    throw error(500, 'Error interno del servidor al actualizar el plato');
+  }
 };
 
-// Eliminar un plato existente
+// Eliminar un plato específico por ID (soft delete)
+// DELETE /api/platos/[id]
 export const DELETE: RequestHandler = async ({ params, locals }) => {
   // Verificar autenticación y permisos
   if (!locals.user) {
     throw error(401, 'No autenticado');
   }
 
-  const platoId = parseInt(params.id);
-  
-  // Validar que el ID sea un número válido
-  if (isNaN(platoId)) {
-    throw error(400, 'ID de plato no válido');
-  }
-
   try {
+    const { id } = params;
+    const platoId = parseInt(id);
+    if (isNaN(platoId)) {
+      throw error(400, 'ID de plato inválido');
+    }
+
     // Verificar que el plato existe
-    const plato = await prisma.platos.findUnique({
+    const platoExistente = await prisma.platos.findUnique({
       where: { Id_Plato: platoId }
     });
 
-    if (!plato) {
+    if (!platoExistente) {
       throw error(404, 'Plato no encontrado');
     }
 
-    // Iniciar transacción para eliminar relaciones y luego el plato
-    await prisma.$transaction([
-      // 1. Eliminar relaciones con tipos de plato
-      prisma.platos_has_MenuEspTipoPlato.deleteMany({
-        where: { Platos_Id_Plato: platoId }
-      }),
-      
-      // 2. Eliminar el plato
-      prisma.platos.delete({
-        where: { Id_Plato: platoId }
-      })
-    ]);
+    // Soft delete: marcar como inactivo
+    await prisma.platos.update({
+      where: { Id_Plato: platoId },
+      data: { Activo: false }
+    });
 
     return new Response(null, { status: 204 });
 
   } catch (err) {
     console.error('Error al eliminar el plato:', err);
     
-    if (err instanceof Error && 'message' in err) {
-      if (err.message.includes('foreign key constraint')) {
-        throw error(400, 'No se puede eliminar el plato porque tiene registros relacionados');
-      }
-      throw error(500, 'Error interno del servidor');
+    if (err.status && err.status < 500) {
+      throw err; // Re-lanzar errores conocidos
     }
     
-    throw error(500, 'Error interno del servidor');
+    throw error(500, 'Error interno del servidor al eliminar el plato');
   }
 };
