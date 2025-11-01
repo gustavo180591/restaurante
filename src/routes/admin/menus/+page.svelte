@@ -34,8 +34,14 @@
 
   async function loadMenus() {
     try {
-      // TODO: Implementar endpoint /api/menus cuando esté disponible
-      // Por ahora, simulamos datos
+      const response = await fetch('/api/menus');
+      if (!response.ok) {
+        throw new Error('Error al cargar los menús');
+      }
+      menus = await response.json();
+    } catch (error) {
+      console.error('Error al cargar menús:', error);
+      // En caso de error, mostrar datos simulados como fallback
       menus = [
         {
           id: 1,
@@ -43,19 +49,11 @@
           descripcion: 'Menú especial para ejecutivos',
           fecha: '2024-01-15',
           activo: true,
-          platos: 5
-        },
-        {
-          id: 2,
-          nombre: 'Menú Familiar',
-          descripcion: 'Opciones para toda la familia',
-          fecha: '2024-01-15',
-          activo: true,
-          platos: 8
+          platos: 5,
+          estado: 'Activo',
+          turno: 'Mediodía'
         }
       ];
-    } catch (error) {
-      console.error('Error al cargar menús:', error);
     }
   }
 
@@ -95,24 +93,40 @@
     try {
       if (editingMenu) {
         // Actualizar menú existente
-        editingMenu.nombre = menuForm.nombre;
-        editingMenu.descripcion = menuForm.descripcion;
-        editingMenu.fecha = menuForm.fecha;
-        editingMenu.activo = menuForm.activo;
+        const response = await fetch(`/api/menus/${editingMenu.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            nombre: menuForm.nombre,
+            descripcion: menuForm.descripcion,
+            fecha: menuForm.fecha,
+            activo: menuForm.activo
+          })
+        });
 
-        // TODO: Llamar a PUT /api/menus/:id
-        console.log('Actualizando menú:', editingMenu);
+        if (!response.ok) {
+          throw new Error('Error al actualizar el menú');
+        }
       } else {
         // Crear nuevo menú
-        const newMenu = {
-          id: Date.now(),
-          ...menuForm,
-          platos: 0
-        };
+        const response = await fetch('/api/menus', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            nombre: menuForm.nombre,
+            descripcion: menuForm.descripcion,
+            fecha: menuForm.fecha,
+            activo: menuForm.activo
+          })
+        });
 
-        // TODO: Llamar a POST /api/menus
-        console.log('Creando menú:', newMenu);
-        menus = [...menus, newMenu];
+        if (!response.ok) {
+          throw new Error('Error al crear el menú');
+        }
       }
 
       showCreateForm = false;

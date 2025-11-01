@@ -19,10 +19,17 @@
 		"db:seed": "ts-node prisma/seed.ts",
 		"seed": "tsx prisma/seed.ts",
 		"test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+		"test:ui": "vitest --ui",
+		"test:run": "vitest run",
+		"test:e2e": "playwright test",
+		"test:e2e:ui": "playwright test --ui",
+		"test:e2e:headed": "playwright test --headed",
+		"test:all": "npm run test:run && npm run test:e2e"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.56.1",
+		"@testing-library/jest-dom": "^6.6.3",
+		"@testing-library/svelte": "^5.2.4",
 		"@types/bcryptjs": "^2.4.6",
 		"@types/node": "^22",
 		"@vitest/ui": "^2.1.8",
@@ -42,17 +49,18 @@
 		"typescript": "^5.9.2",
 		"typescript-eslint": "^8.44.1",
 		"vite": "^7.1.7",
-		"vitest": "^2.1.8",
-		"@testing-library/svelte": "^5.2.4",
-		"@testing-library/jest-dom": "^6.6.3"
+		"vitest": "^2.1.8"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.908.0",
 		"@prisma/client": "^6.17.1",
+		"@sentry/profiling-node": "^10.20.0",
+		"@sentry/sveltekit": "^10.20.0",
 		"@tanstack/svelte-query": "^6.0.3",
 		"@types/uuid": "^10.0.0",
 		"bcryptjs": "^3.0.2",
 		"cropperjs": "^2.0.1",
+		"redis": "^5.8.3",
 		"uuid": "^13.0.0",
 		"zod": "^4.1.12"
 	}

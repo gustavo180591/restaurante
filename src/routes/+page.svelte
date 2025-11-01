@@ -1,6 +1,30 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  
+  import { monitoring } from '$lib/monitoring';
+
+  onMount(() => {
+    // Registrar visita a página principal
+    monitoring.logUserAction('page_visit', undefined, {
+      page: 'home',
+      userAgent: navigator.userAgent,
+      viewport: `${window.innerWidth}x${window.innerHeight}`
+    });
+
+    // Monitorear tiempo de carga de la página
+    const loadTime = performance.now();
+    monitoring.logPerformance('page_load_home', Math.round(loadTime), {
+      success: true
+    });
+
+    // Configurar scroll listener
+    const handleScroll = () => {
+      isScrolled = window.scrollY > 50;
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  });
+
   // Datos de ejemplo para el menú del día
   const menuDelDia = [
     { nombre: 'Ensalada César', descripcion: 'Lechuga romana, crutones, queso parmesano, aderezo césar', precio: 12.99 },
@@ -10,18 +34,7 @@
   ];
 
   let isScrolled = false;
-  
-  onMount(() => {
-    const handleScroll = () => {
-      isScrolled = window.scrollY > 50;
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  });
 </script>
-
-<svelte:head>
   <title>Restaurante del Chef - Inicio</title>
   <meta name="description" content="Disfruta de la mejor gastronomía en un ambiente acogedor y con ingredientes de primera calidad." />
 </svelte:head>
