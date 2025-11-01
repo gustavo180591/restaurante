@@ -155,13 +155,37 @@ export const initializeCart = () => {
     const savedCart = localStorage.getItem('cart');
     if (savedCart) {
       try {
-        const items = JSON.parse(savedCart);
-        cartStore.update(state => {
-          state.items = items;
-          return state;
-        });
+        const parsedCart = JSON.parse(savedCart);
+        
+        // Ensure the parsed data is an array
+        const items = Array.isArray(parsedCart) 
+          ? parsedCart 
+          : (parsedCart.items || []);
+        
+        // Ensure each item has the required properties
+        const validItems = items.map((item: any) => ({
+          id: Number(item.id) || 0,
+          nombre: String(item.nombre || ''),
+          precio: Number(item.precio) || 0,
+          cantidad: Number(item.cantidad) || 1,
+          foto: item.foto || '',
+          nota: item.nota || '',
+          disponible: Boolean(item.disponible !== false)
+        })).filter((item: { id: number }) => item.id > 0); // Only keep items with valid IDs
+
+        cartStore.update(state => ({
+          ...state,
+          items: validItems
+        }));
       } catch (error) {
         console.error('Error al cargar carrito desde localStorage:', error);
+        // Reset to empty cart if there's an error
+        cartStore.update(state => ({
+          ...state,
+          items: []
+        }));
+        // Clear invalid cart data
+        localStorage.removeItem('cart');
       }
     }
   }

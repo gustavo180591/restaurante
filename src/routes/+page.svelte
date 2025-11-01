@@ -27,17 +27,38 @@
 
   // Datos de ejemplo para el menú del día
   const menuDelDia = [
-    { nombre: 'Ensalada César', descripcion: 'Lechuga romana, crutones, queso parmesano, aderezo césar', precio: 12.99 },
-    { nombre: 'Pasta Carbonara', descripcion: 'Pasta con salsa cremosa de huevo, queso, panceta y pimienta negra', precio: 15.99 },
-    { nombre: 'Parrillada de Verduras', descripcion: 'Verduras de temporada a la parrilla con aceite de oliva', precio: 13.99 },
-    { nombre: 'Tiramisú', descripcion: 'Postre italiano clásico con café y cacao en polvo', precio: 7.99 }
+    { 
+      nombre: 'Ensalada César', 
+      descripcion: 'Lechuga romana, crutones, queso parmesano, aderezo césar', 
+      precio: 12.99,
+      imagen: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
+    },
+    { 
+      nombre: 'Pasta Carbonara', 
+      descripcion: 'Pasta con salsa cremosa de huevo, queso, panceta y pimienta negra', 
+      precio: 15.99,
+      imagen: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
+    },
+    { 
+      nombre: 'Parrillada de Verduras', 
+      descripcion: 'Verduras de temporada a la parrilla con aceite de oliva', 
+      precio: 13.99,
+      imagen: 'https://images.unsplash.com/photo-1603105037880-88090c12bd04?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
+    },
+    { 
+      nombre: 'Tiramisú', 
+      descripcion: 'Postre italiano clásico con café y cacao en polvo', 
+      precio: 7.99,
+      imagen: 'https://images.unsplash.com/photo-1571790348503-69f1176c99de?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
+    }
   ];
 
   let isScrolled = false;
 </script>
-  <title>Restaurante del Chef - Inicio</title>
-  <meta name="description" content="Disfruta de la mejor gastronomía en un ambiente acogedor y con ingredientes de primera calidad." />
-</svelte:head>
+  <svelte:head>
+    <title>Restaurante del Chef - Inicio</title>
+    <meta name="description" content="Disfruta de la mejor gastronomía en un ambiente acogedor y con ingredientes de primera calidad." />
+  </svelte:head>
 
 <!-- Hero Section -->
 <header class="relative h-screen flex items-center justify-center bg-gray-900 text-white overflow-hidden">
@@ -57,7 +78,7 @@
       <a href="#menu" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-full text-lg transition duration-300 transform hover:scale-105">
         Ver Menú
       </a>
-      <a href="#reservas" class="bg-transparent border-2 border-white hover:bg-white hover:text-gray-900 text-white font-bold py-3 px-8 rounded-full text-lg transition duration-300">
+      <a href="/reservas" class="bg-transparent border-2 border-white hover:bg-white hover:text-gray-900 text-white font-bold py-3 px-8 rounded-full text-lg transition duration-300">
         Reservar Mesa
       </a>
     </div>
@@ -124,9 +145,10 @@
           </div>
           <div class="ml-4 w-24 h-24 bg-gray-200 rounded overflow-hidden">
             <img 
-              src={`https://source.unsplash.com/random/200x200/?food,${i}`} 
+              src={item.imagen}
               alt={item.nombre} 
               class="w-full h-full object-cover"
+              loading="lazy"
             />
           </div>
         </div>

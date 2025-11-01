@@ -217,7 +217,7 @@
     <h2 class="text-4xl font-bold mb-6">¿Listo para vivir una experiencia inolvidable?</h2>
     <p class="text-xl mb-8 max-w-2xl mx-auto">Ven a visitarnos y descubre por qué somos el restaurante preferido de la ciudad.</p>
     <div class="flex flex-col sm:flex-row gap-4 justify-center">
-      <a href="/#reservas" class="bg-white text-amber-600 font-bold py-3 px-8 rounded-full text-lg hover:bg-gray-100 transition duration-300">
+      <a href="/reservas" class="bg-white text-amber-600 font-bold py-3 px-8 rounded-full text-lg hover:bg-gray-100 transition duration-300">
         Reservar Mesa
       </a>
       <a href="/menu" class="bg-transparent border-2 border-white text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-white hover:text-amber-600 transition duration-300">
