@@ -43,13 +43,13 @@
       nombre: 'Parrillada de Verduras', 
       descripcion: 'Verduras de temporada a la parrilla con aceite de oliva', 
       precio: 13.99,
-      imagen: 'https://images.unsplash.com/photo-1603105037880-88090c12bd04?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
+      imagen: '/images/parrillada-verduras.jpg'
     },
     { 
       nombre: 'Tiramisú', 
       descripcion: 'Postre italiano clásico con café y cacao en polvo', 
       precio: 7.99,
-      imagen: 'https://images.unsplash.com/photo-1571790348503-69f1176c99de?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
+      imagen: '/images/tiramisu.jpg'
     }
   ];
 

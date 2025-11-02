@@ -8,113 +8,119 @@
   $: currentPath = $page.url.pathname;
 </script>
 
-<header class="bg-white border-b border-gray-200">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex justify-between h-16">
-      <!-- Logo -->
-      <div class="flex-shrink-0 flex items-center">
-        <a href="/" class="flex items-center">
-          <!-- Logo placeholder - reemplaza con tu logo -->
-          <div class="h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-            <span class="text-gray-500 font-bold text-lg">R</span>
+<header class="bg-white shadow-sm sticky top-0 z-40">
+  <nav class="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-4 sm:space-x-6">
+        <a href="/" class="flex items-center space-x-2">
+          <div class="w-8 h-8 sm:w-10 sm:h-10 bg-amber-600 rounded-full flex items-center justify-center">
+            <span class="text-white font-bold text-base sm:text-lg">R</span>
           </div>
-          <span class="ml-3 text-xl font-bold text-gray-800">RESTAURANTE</span>
+          <span class="text-lg sm:text-xl font-bold text-gray-900">Restaurante del Chef</span>
         </a>
+        
+        <!-- Navegación de escritorio -->
+        <div class="hidden md:flex items-center space-x-4 lg:space-x-6">
+          <a href="/" class="text-sm sm:text-base text-gray-600 hover:text-amber-600 transition-colors font-medium {currentPath === '/' ? 'text-amber-600' : ''}">Inicio</a>
+          <a href="/menu" class="text-sm sm:text-base text-gray-600 hover:text-amber-600 transition-colors font-medium {currentPath === '/menu' ? 'text-amber-600' : ''}">Menú</a>
+          <a href="/sobre-nosotros" class="text-sm sm:text-base text-gray-600 hover:text-amber-600 transition-colors font-medium {currentPath === '/sobre-nosotros' ? 'text-amber-600' : ''}">Sobre Nosotros</a>
+          <a href="/contacto" class="text-sm sm:text-base text-gray-600 hover:text-amber-600 transition-colors font-medium {currentPath === '/contacto' ? 'text-amber-600' : ''}">Contacto</a>
+        </div>
       </div>
       
-      <!-- Navegación de escritorio -->
-      <nav class="hidden md:ml-6 md:flex md:items-center md:space-x-6">
-        <a 
-          href="/login" 
-          class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-amber-600 transition-colors duration-200 {currentPath === '/login' ? 'text-amber-600' : ''}"
-        >
-          INICIAR SESIÓN
-        </a>
-        <a 
-          href="/registro" 
-          class="px-3 py-2 text-sm font-medium text-gray-500 hover:text-amber-600 transition-colors duration-200 {currentPath === '/registro' ? 'text-amber-600' : ''}"
-        >
-          REGISTRARSE
-        </a>
-      </nav>
-      
-      <!-- Botón móvil -->
-      <div class="-mr-2 flex items-center md:hidden">
+      <div class="flex items-center space-x-3 sm:space-x-4">
+        <!-- Botones de autenticación -->
+        <div class="hidden md:flex items-center space-x-3 lg:space-x-4">
+          <a 
+            href="/login" 
+            class="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-amber-600 transition-colors {currentPath === '/login' ? 'text-amber-600' : ''}"
+          >
+            Iniciar Sesión
+          </a>
+          <a 
+            href="/registro" 
+            class="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 transition-colors {currentPath === '/registro' ? 'bg-amber-700' : ''}"
+          >
+            Registrarse
+          </a>
+        </div>
+        
+        <!-- Carrito -->
+        <button class="relative bg-amber-600 hover:bg-amber-700 text-white p-2 sm:p-3 rounded-full transition-colors shadow-lg hover:shadow-xl" aria-label="Ver carrito de compras">
+          <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5-6m0 0h15.5M17 21a2 2 0 100-4 2 2 0 000 4zM9 21a2 2 0 100-4 2 2 0 000 4z" />
+          </svg>
+        </button>
+        
+        <!-- Botón móvil -->
         <button 
-          type="button" 
-          class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-amber-500"
+          class="md:hidden text-gray-600 hover:text-gray-900 p-1" 
+          aria-label="Menú móvil"
           on:click={() => (mobileMenuOpen = !mobileMenuOpen)}
         >
-          <span class="sr-only">Abrir menú principal</span>
-          <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
           </svg>
         </button>
       </div>
     </div>
-  </div>
-  
-  <!-- Menú móvil - Solo se muestra en páginas que no sean registro -->
-  {#if currentPath !== '/registro'}
-    <div class="md:hidden {mobileMenuOpen ? 'fixed inset-0 z-50' : 'hidden'}">
-      <!-- Fondo oscuro -->
-      <div 
-        class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        on:click|self={() => mobileMenuOpen = false}
-      ></div>
-      
-      <!-- Contenido del menú -->
-      <div class="fixed inset-y-0 right-0 w-4/5 max-w-sm bg-white shadow-xl">
-        <div class="flex flex-col h-full p-6">
-          <!-- Botón de cerrar -->
-          <div class="flex justify-end mb-8">
-            <button 
-              type="button" 
-              class="p-2 -mr-2 text-gray-400 hover:text-gray-500"
-              on:click={() => mobileMenuOpen = false}
-            >
-              <span class="sr-only">Cerrar menú</span>
-              <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          
-          <!-- Enlaces del menú -->
-          <nav class="flex-1 flex flex-col justify-center space-y-8">
+    
+    <!-- Menú móvil -->
+    {#if mobileMenuOpen}
+      <div class="md:hidden mt-3 sm:mt-4 pb-3 sm:pb-4 border-t border-gray-200">
+        <div class="pt-3 sm:pt-4 space-y-2 sm:space-y-3">
+          <a 
+            href="/" 
+            class="block px-3 py-2 text-sm sm:text-base font-medium text-gray-700 hover:text-amber-600 hover:bg-gray-50 rounded-md {currentPath === '/' ? 'text-amber-600 bg-gray-50' : ''}"
+            on:click={() => mobileMenuOpen = false}
+          >
+            Inicio
+          </a>
+          <a 
+            href="/menu" 
+            class="block px-3 py-2 text-sm sm:text-base font-medium text-gray-700 hover:text-amber-600 hover:bg-gray-50 rounded-md {currentPath === '/menu' ? 'text-amber-600 bg-gray-50' : ''}"
+            on:click={() => mobileMenuOpen = false}
+          >
+            Menú
+          </a>
+          <a 
+            href="/sobre-nosotros" 
+            class="block px-3 py-2 text-sm sm:text-base font-medium text-gray-700 hover:text-amber-600 hover:bg-gray-50 rounded-md {currentPath === '/sobre-nosotros' ? 'text-amber-600 bg-gray-50' : ''}"
+            on:click={() => mobileMenuOpen = false}
+          >
+            Sobre Nosotros
+          </a>
+          <a 
+            href="/contacto" 
+            class="block px-3 py-2 text-sm sm:text-base font-medium text-gray-700 hover:text-amber-600 hover:bg-gray-50 rounded-md {currentPath === '/contacto' ? 'text-amber-600 bg-gray-50' : ''}"
+            on:click={() => mobileMenuOpen = false}
+          >
+            Contacto
+          </a>
+          <div class="pt-2 border-t border-gray-200">
             <a 
               href="/login" 
-              class="text-2xl font-medium text-center text-gray-900 hover:text-amber-600 px-4 py-3"
+              class="block w-full text-center px-4 py-2 text-sm sm:text-base font-medium text-gray-700 hover:text-amber-600 hover:bg-gray-50 rounded-md {currentPath === '/login' ? 'text-amber-600 bg-gray-50' : ''}"
               on:click={() => mobileMenuOpen = false}
             >
-              INICIAR SESIÓN
+              Iniciar Sesión
             </a>
             <a 
               href="/registro" 
-              class="text-2xl font-medium text-center text-gray-900 hover:text-amber-600 px-4 py-3"
+              class="mt-2 block w-full text-center px-4 py-2 text-sm sm:text-base font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 transition-colors {currentPath === '/registro' ? 'bg-amber-700' : ''}"
               on:click={() => mobileMenuOpen = false}
             >
-              REGISTRARSE
+              Registrarse
             </a>
-          </nav>
+          </div>
         </div>
       </div>
-    </div>
-  {/if}
+    {/if}
+  </nav>
 </header>
 
 <style>
   a, button {
     transition: all 0.2s ease-in-out;
-  }
-  
-  /* Animación de entrada del menú */
-  .fixed.inset-0.z-50 > div:last-child {
-    animation: slideIn 0.3s ease-out forwards;
-  }
-  
-  @keyframes slideIn {
-    from { transform: translateX(100%); }
-    to { transform: translateX(0); }
   }
 </style>

@@ -29,6 +29,7 @@
 	"devDependencies": {
 		"@playwright/test": "^1.56.1",
 		"@sveltejs/adapter-auto": "^7.0.0",
+		"@sveltejs/adapter-netlify": "^5.2.4",
 		"@tailwindcss/forms": "^0.5.10",
 		"@tailwindcss/vite": "^4.1.16",
 		"@testing-library/jest-dom": "^6.6.3",

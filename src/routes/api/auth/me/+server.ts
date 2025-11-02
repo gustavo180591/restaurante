@@ -18,13 +18,13 @@ export const GET: RequestHandler = async ({ locals }) => {
         email: true,
         activo: true,
         ultimoAcceso: true,
-        perfil: {
+        Perfiles: {                 
           select: {
             Id_Perfil: true,
             NombrePerfil: true
           }
         },
-        foto: {
+        Fotos: {
           select: {
             Id_Foto: true,
             Ruta: true
@@ -41,23 +41,23 @@ export const GET: RequestHandler = async ({ locals }) => {
     }
 
     return new Response(
-      JSON.stringify({
-        id: user.Id_usuario,
-        usuario: user.usuario,
-        email: user.email,
-        activo: user.activo,
-        ultimoAcceso: user.ultimoAcceso,
-        perfil: {
-          id: user.perfil.Id_Perfil,
-          nombre: user.perfil.NombrePerfil
-        },
-        foto: user.foto ? {
-          id: user.foto.Id_Foto,
-          ruta: user.foto.Ruta
-        } : null
-      }),
-      { headers: { 'content-type': 'application/json' } }
-    );
+  JSON.stringify({
+    id: user.Id_usuario,
+    usuario: user.usuario,
+    email: user.email,
+    activo: user.activo,
+    ultimoAcceso: user.ultimoAcceso,
+    perfil: user.Perfiles ? {
+      id: user.Perfiles.Id_Perfil,
+      nombre: user.Perfiles.NombrePerfil
+    } : null,
+    foto: user.Fotos ? {
+      id: user.Fotos.Id_Foto,
+      ruta: user.Fotos.Ruta
+    } : null
+  }),
+  { headers: { 'content-type': 'application/json' } }
+);
   } catch (error) {
     console.error('Error al obtener datos del usuario:', error);
     return new Response(
