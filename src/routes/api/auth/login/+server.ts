@@ -1,12 +1,33 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { PrismaClient } from '@prisma/client';
-import { compare } from 'bcrypt';
-import { sign } from 'jsonwebtoken';
-import { JWT_SECRET } from '$env/static/private';
+import { compare } from 'bcryptjs';
+import { SignJWT } from 'jose';
+
+const JWT_SECRET = import.meta.env.VITE_JWT_SECRET || process.env.JWT_SECRET;
 
 const prisma = new PrismaClient();
 
-export async function POST({ request, cookies }) {
+interface LoginResponse {
+    success: boolean;
+    message?: string;
+    user?: {
+        id: number;
+        username: string;
+        email: string | null;
+        profile: {
+            Id_Perfil: number;
+            NombrePerfil: string;
+        };
+        persona?: {
+            nombres: string;
+            apellidos: string;
+            email: string | null;
+        } | null;
+        foto: string | null;
+    };
+}
+
+export const POST: RequestHandler = async ({ request, cookies }) => {
     try {
         const formData = await request.formData();
         const usuario = formData.get('usuario') as string;
@@ -17,11 +38,20 @@ export async function POST({ request, cookies }) {
         }
 
         // Buscar el usuario en la base de datos
-        const user = await prisma.usuarios.findUnique({
+        const user = await prisma.usuarios.findFirst({
             where: { usuario },
             include: {
                 Perfiles: true,
-                Personas: true,
+                Empleados: {
+                    include: {
+                        Personas: true
+                    }
+                },
+                Clientes: {
+                    include: {
+                        Personas: true
+                    }
+                },
                 Fotos: true
             }
         });
@@ -42,17 +72,18 @@ export async function POST({ request, cookies }) {
             throw error(403, 'Tu cuenta ha sido desactivada. Contacta al administrador.');
         }
 
-        // Crear el token JWT
-        const token = sign(
-            {
-                userId: user.Id_usuario,
-                username: user.usuario,
-                profileId: user.Perfiles_Id_Perfil,
-                sessionVersion: user.sessionVersion
-            },
-            JWT_SECRET,
-            { expiresIn: '7d' }
-        );
+        // Crear el token JWT con jose
+        const secret = new TextEncoder().encode(JWT_SECRET);
+        const token = await new SignJWT({
+            userId: user.Id_usuario,
+            username: user.usuario,
+            profileId: user.Perfiles_Id_Perfil,
+            sessionVersion: user.sessionVersion
+        })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('7d')
+        .sign(secret);
 
         // Configurar la cookie de sesión
         cookies.set('session', token, {
@@ -71,28 +102,48 @@ export async function POST({ request, cookies }) {
             }
         });
 
+        // Obtener datos de la persona (puede ser de Empleado o Cliente)
+        let personaData = null;
+        if (user.Empleados?.length > 0 && user.Empleados[0].Personas) {
+            const persona = user.Empleados[0].Personas;
+            personaData = {
+                nombres: persona.nombres || '',
+                apellidos: persona.Apellidos || '', // Note: Capital A in Apellidos
+                email: persona.email || null
+            };
+        } else if (user.Clientes?.length > 0 && user.Clientes[0].Personas) {
+            const persona = user.Clientes[0].Personas;
+            personaData = {
+                nombres: persona.nombres || '',
+                apellidos: persona.Apellidos || '', // Note: Capital A in Apellidos
+                email: persona.email || null
+            };
+        }
+
         // Devolver información básica del usuario (sin datos sensibles)
-        return json({
+        const response: LoginResponse = {
             success: true,
             user: {
                 id: user.Id_usuario,
                 username: user.usuario,
                 email: user.email,
-                profile: user.Perfiles,
-                persona: user.Personas ? {
-                    nombres: user.Personas.nombres,
-                    apellidos: user.Personas.Apellidos,
-                    email: user.Personas.email
-                } : null,
+                profile: {
+                    Id_Perfil: user.Perfiles.Id_Perfil,
+                    NombrePerfil: user.Perfiles.NombrePerfil
+                },
+                persona: personaData,
                 foto: user.Fotos ? user.Fotos.Ruta : null
             }
-        });
+        };
+        
+        return json(response);
 
-    } catch (err) {
+    } catch (err: any) {
         console.error('Login error:', err);
-        return json(
-            { success: false, message: err.message || 'Error al iniciar sesión' },
-            { status: err.status || 500 }
-        );
+        const errorResponse: LoginResponse = {
+            success: false,
+            message: err.message || 'Error al iniciar sesión'
+        };
+        return json(errorResponse, { status: err.status || 500 });
     }
 }

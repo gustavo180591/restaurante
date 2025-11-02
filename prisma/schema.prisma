@@ -7,13 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Perfiles {
-  Id_Perfil    Int        @id @default(autoincrement())
-  NombrePerfil String     @db.VarChar(55)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  Personas     Personas[]
-  Usuarios     Usuarios[]
+enum Rol {
+  admin
+  operador
+  mozo
+  cliente
 }
 
 model Fotos {
@@ -67,12 +65,11 @@ model Personas {
   Telefono   String      @db.VarChar(15)
   email      String?     @db.VarChar(100)
   direccion  String?     @db.VarChar(255)
+  rol        Rol         @default(cliente)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
-  Id_Perfil  Int
   Clientes   Clientes[]
   Empleados  Empleados[]
-  Perfil     Perfiles    @relation(fields: [Id_Perfil], references: [Id_Perfil], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Usuarios {
@@ -83,15 +80,13 @@ model Usuarios {
   activo             Boolean     @default(true)
   ultimoAcceso       DateTime?
   createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
-  Perfiles_Id_Perfil Int
-  Fotos_Id_Foto      Int?
-  sessionVersion     Int         @default(1)
-  Cartas             Cartas[]
-  Clientes           Clientes[]
-  Empleados          Empleados[]
-  Fotos              Fotos?      @relation(fields: [Fotos_Id_Foto], references: [Id_Foto])
-  Perfiles           Perfiles    @relation(fields: [Perfiles_Id_Perfil], references: [Id_Perfil])
+  updatedAt      DateTime    @updatedAt
+  Fotos_Id_Foto  Int?
+  sessionVersion Int         @default(1)
+  Cartas         Cartas[]
+  Clientes       Clientes[]
+  Empleados      Empleados[]
+  Fotos          Fotos?      @relation(fields: [Fotos_Id_Foto], references: [Id_Foto])
 }
 
 model Empleados {

@@ -3,15 +3,31 @@
     import { onMount } from 'svelte';
     import bcrypt from 'bcryptjs';
     
+    // Form State
+    let formData = {
+        dni: '',
+        nombres: '',
+        apellidos: '',
+        genero: 1, // Default to 1 (Masculino)
+        telefono: '',
+        email: '',
+        direccion: '',
+        clave: '',
+        confirmarClave: ''
+    };
+    
+    const generos = [
+        { id: 1, nombre: 'Masculino' },
+        { id: 2, nombre: 'Femenino' },
+        { id: 3, nombre: 'Otro' }
+    ];
+    
     // UI State
     let showPassword = false;
     let showConfirmPassword = false;
-    let password = '';
-    let confirmPassword = '';
     let error: string | null = null;
     let success: string | null = null;
     let loading = false;
-    let formSubmitted = false;
 
     // Check if user is already logged in
     onMount(async () => {
@@ -29,45 +45,35 @@
         }
     });
 
-    async function handleSubmit({ formData, action, formElement, controller, cancel }: {
-        formData: FormData;
-        action: URL;
-        formElement: HTMLFormElement;
-        controller: AbortController;
-        cancel: () => void;
-    }) {
+    async function handleSubmit(event: Event) {
+        event.preventDefault();
         loading = true;
         error = null;
         success = null;
 
-        // Get form data
-        const formDataObj = Object.fromEntries(formData.entries());
-        const { clave, confirmarClave, ...rest } = formDataObj;
-
-        // Ensure passwords are strings
-        const password = String(clave);
-        const confirmPassword = String(confirmarClave);
-
-        // Basic client-side validation
-        if (password !== confirmPassword) {
-            error = 'Las contraseñas no coinciden';
-            loading = false;
-            return;
-        }
-
-        // Hash the password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
         try {
+            // Debug logging
+            console.log('Form Data:', JSON.stringify(formData, null, 2));
+            console.log('Password match:', formData.clave === formData.confirmarClave);
+
+            // Check if passwords match
+            if (formData.clave !== formData.confirmarClave) {
+                throw new Error('Las contraseñas no coinciden. Por favor, verifica que ambas contraseñas sean idénticas.');
+            }
+
+            // Hash the password
+            const hashedPassword = await bcrypt.hash(formData.clave, 10);
+            
+            // Prepare the data to send
+            const { confirmarClave, ...userData } = formData;
+            const payload = { ...userData, clave: hashedPassword };
+            
+            console.log('Sending payload:', JSON.stringify(payload, null, 2));
+
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ...rest,
-                    clave: hashedPassword
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
 
             const result = await response.json();
@@ -82,12 +88,9 @@
                 window.location.href = '/login';
             }, 2000);
 
-        } catch (error) {
-            if (error instanceof Error) {
-                error = error.message;
-            } else {
-                error = 'Error al registrar el usuario';
-            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Error al registrar el usuario';
+            error = errorMessage;
             console.error('Registration error:', error);
         } finally {
             loading = false;
@@ -143,10 +146,31 @@
             </div>
         {/if}
 
-        <form method="POST" class="mt-8 space-y-6" action="?/register" use:enhance={handleSubmit}>
+        <form on:submit|preventDefault={handleSubmit} class="mt-8 space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
-                    <label for="nombres" class="block text-sm font-medium text-gray-700">Nombres</label>
+                    <label for="dni" class="block text-sm font-medium text-gray-700">DNI <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <input
+                            id="dni"
+                            name="dni"
+                            type="text"
+                            required
+                            maxlength="15"
+                            bind:value={formData.dni}
+                            class="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                            placeholder="Número de documento"
+                        />
+                    </div>
+                </div>
+                
+                <div class="space-y-1">
+                    <label for="nombres" class="block text-sm font-medium text-gray-700">Nombres <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -160,6 +184,7 @@
                             required
                             minlength="2"
                             maxlength="100"
+                            bind:value={formData.nombres}
                             class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
                             placeholder="Tus nombres"
                         />
@@ -175,37 +200,74 @@
                             type="text"
                             required
                             minlength="2"
-                            maxlength="100"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                            placeholder="Tus apellidos"
+                            bind:value={formData.apellidos}
+                            class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                            placeholder="Ingresa tus apellidos"
                         />
                     </div>
                 </div>
             </div>
 
             <div class="space-y-1">
-                <label for="dni" class="block text-sm font-medium text-gray-700">DNI</label>
+                <label for="genero" class="block text-sm font-medium text-gray-700">Género <span class="text-red-500">*</span></label>
+                <select
+                    id="genero"
+                    name="genero"
+                    bind:value={formData.genero}
+                    class="appearance-none block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                >
+                    {#each generos as genero}
+                        <option value={genero.id}>
+                            {genero.nombre}
+                        </option>
+                    {/each}
+                </select>
+            </div>
+
+            <div class="space-y-1">
+                <label for="telefono" class="block text-sm font-medium text-gray-700">Teléfono <span class="text-red-500">*</span></label>
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                         </svg>
                     </div>
                     <input
-                        id="dni"
-                        name="dni"
-                        type="text"
+                        id="telefono"
+                        name="telefono"
+                        type="tel"
                         required
-                        minlength="8"
-                        maxlength="20"
-                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                        placeholder="Número de documento"
+                        maxlength="15"
+                        bind:value={formData.telefono}
+                        class="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                        placeholder="Número de teléfono"
                     />
                 </div>
             </div>
 
             <div class="space-y-1">
-                <label for="email" class="block text-sm font-medium text-gray-700">Correo electrónico</label>
+                <label for="direccion" class="block text-sm font-medium text-gray-700">Dirección</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <input
+                        id="direccion"
+                        name="direccion"
+                        type="text"
+                        bind:value={formData.direccion}
+                        maxlength="255"
+                        class="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                        placeholder="Dirección de residencia"
+                    />
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <label for="email" class="block text-sm font-medium text-gray-700">Correo electrónico <span class="text-red-500">*</span></label>
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -217,47 +279,9 @@
                         name="email"
                         type="email"
                         required
-                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                        bind:value={formData.email}
+                        class="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
                         placeholder="tucorreo@ejemplo.com"
-                    />
-                </div>
-            </div>
-
-            <div class="space-y-1">
-                <label for="telefono" class="block text-sm font-medium text-gray-700">Teléfono (opcional)</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                    </div>
-                    <input
-                        id="telefono"
-                        name="telefono"
-                        type="tel"
-                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                        placeholder="+51 987 654 321"
-                    />
-                </div>
-            </div>
-
-            <div class="space-y-1">
-                <label for="usuario" class="block text-sm font-medium text-gray-700">Nombre de usuario</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                    </div>
-                    <input
-                        id="usuario"
-                        name="usuario"
-                        type="text"
-                        required
-                        minlength="3"
-                        maxlength="65"
-                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                        placeholder="usuario123"
                     />
                 </div>
             </div>
@@ -273,7 +297,7 @@
                     <input
                         id="clave"
                         name="clave"
-                        bind:value={password}
+                        bind:value={formData.clave}
                         type={showPassword ? 'text' : 'password'}
                         required
                         minlength="6"
@@ -310,7 +334,8 @@
                     </div>
                     <input
                         id="confirmarClave"
-                        bind:value={confirmPassword}
+                        bind:value={formData.confirmarClave}
+                        name="confirmarClave"
                         type={showConfirmPassword ? 'text' : 'password'}
                         required
                         minlength="6"
