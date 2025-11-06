@@ -2,8 +2,13 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import MiniCart from '$lib/components/MiniCart.svelte';
+	import UserMenu from '$lib/components/UserMenu.svelte';
 	import { onMount } from 'svelte';
 	import { initializeCart } from '$lib/stores/cart';
+	import { page } from '$app/stores';
+	
+	// Obtener la sesión del usuario desde page.data
+	let user = $derived($page.data.user);
 
 	let { children } = $props();
 
@@ -38,13 +43,17 @@
 
 			<!-- Carrito y menú móvil -->
 			<div class="flex items-center space-x-4">
-				<!-- Auth Buttons - Desktop -->
-				<div class="hidden items-center space-x-4 md:flex">
-					<a href="/login" class="font-medium text-gray-600 transition-colors hover:text-amber-600">Iniciar Sesión</a>
-					<a href="/registro" class="px-4 py-2 font-medium text-white bg-amber-600 rounded-md transition-colors hover:bg-amber-700">Registrarse</a>
-				</div>
-
 				<MiniCart />
+
+				<!-- Menú de usuario -->
+				<div class="hidden items-center space-x-4 md:flex">
+					{#if user}
+						<UserMenu />
+					{:else}
+						<a href="/login" class="font-medium text-gray-600 transition-colors hover:text-amber-600">Iniciar Sesión</a>
+						<a href="/registro" class="px-4 py-2 font-medium text-white bg-amber-600 rounded-md transition-colors hover:bg-amber-700">Registrarse</a>
+					{/if}
+				</div>
 
 				<!-- Menú móvil (hamburger) -->
 				<button class="text-gray-600 md:hidden hover:text-gray-900" aria-label="Menú móvil">

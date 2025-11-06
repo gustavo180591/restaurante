@@ -1,135 +1,74 @@
 import type { Handle } from '@sveltejs/kit';
 import { randomUUID } from 'crypto';
-import { verifySession } from '$lib/server/jwt';
-import { prisma } from '$lib/db/prisma';
-import { getTokenFromCookies, deleteSessionCookie } from '$lib/server/auth/utils';
+import { getSession, sessionCookieAttributes } from '$lib/server/auth';
 
 // Rutas públicas que no requieren autenticación
 const PUBLIC_ROUTES = new Set([
   '/',
-  '/login',
-  '/api/auth/login',
-  '/api/auth/register',
+  '/auth/login',
+  '/auth/register',
+  '/recuperar-contrasena',
   '/health',
-  '/favicon.ico'
+  '/favicon.ico',
+  '/api/auth/'
 ]);
-
-// Tipos para el usuario autenticado
-declare global {
-  namespace App {
-    interface Locals {
-      user: {
-        id: string;
-        roles: string[];
-        sessionVersion: number;
-      } | null;
-      cid: string;
-    }
-  }
-}
 
 export const handle: Handle = async ({ event, resolve }) => {
   // Configurar ID de correlación
   const cid = event.request.headers.get('x-correlation-id') ?? randomUUID();
   event.locals.cid = cid;
   event.locals.user = null;
+  event.locals.sessionId = null;
 
-  // Obtener token de la cookie
-  const token = getTokenFromCookies(event.cookies);
+  // Obtener sesión de la cookie
+  const { name: cookieName } = sessionCookieAttributes();
+  const sessionId = event.cookies.get(cookieName);
   
-  if (token) {
+  if (sessionId) {
     try {
-      console.log('Found session token, verifying...');
-      
-      // Verificar el token JWT
-      const payload = await verifySession(token);
-      
-      // Buscar usuario en la base de datos
-      const userId = parseInt(payload.sub);
-      if (isNaN(userId)) {
-        console.error('Invalid user ID in token:', payload.sub);
-        event.cookies.delete('session', { path: '/' });
-        return resolve(event);
-      }
-      
-      const user = await prisma.usuarios.findUnique({
-        where: { Id_usuario: userId },
-        include: {
-          Clientes: {
-            select: { Id_Cliente: true },
-            take: 1
-          },
-          Empleados: {
-            select: { Id_empleado: true },
-            take: 1
-          }
-        }
-      });
-
-      // Validar usuario
-      if (user && user.activo && user.sessionVersion === payload.sv) {
-        // Verificar que tenga al menos un perfil (Cliente o Empleado)
-        const hasProfile = (user.Clientes && user.Clientes.length > 0) || 
-                         (user.Empleados && user.Empleados.length > 0);
-        
-        if (hasProfile) {
-          // Usar el rol del usuario directamente del modelo
-          event.locals.user = {
-            id: user.Id_usuario.toString(),
-            roles: [user.rol],
-            sessionVersion: user.sessionVersion
-          };
-        } else {
-          // Usuario sin perfil válido
-          console.warn(`[${cid}] User ${user.Id_usuario} has no associated profile`);
-          event.cookies.delete('session', { path: '/' });
-        }
-      } else if (user && !user.activo) {
-        // Usuario inactivo
-        console.warn(`[${cid}] Inactive user login attempt: ${user.Id_usuario}`);
-        event.cookies.delete('session', { path: '/' });
-      } else if (user && user.sessionVersion !== payload.sv) {
-        // Versión de sesión desactualizada (cerrada en otro dispositivo)
-        console.warn(`[${cid}] Session version mismatch for user: ${user.Id_usuario}`);
-        event.cookies.delete('session', { path: '/' });
+      const session = await getSession(sessionId);
+      if (session) {
+        const { user } = session;
+        event.locals.user = {
+          id: user.id,
+          email: user.email,
+          dni: user.dni,
+          name: user.name,
+          role: user.role
+        };
+        event.locals.sessionId = sessionId;
+      } else {
+        // Eliminar cookie de sesión inválida
+        event.cookies.delete(cookieName, { path: '/' });
       }
     } catch (error) {
-      // Token inválido o expirado
-      console.error(`[${cid}] Invalid session token:`, error);
-      event.cookies.delete('session', { path: '/' });
+      console.error(`[${cid}] Error al obtener la sesión:`, error);
+      event.cookies.delete(cookieName, { path: '/' });
     }
   }
 
-  // Verificar autenticación para rutas protegidas
-  const { pathname } = new URL(event.request.url);
-  const isPublicRoute = Array.from(PUBLIC_ROUTES).some(route => 
-    pathname === route || pathname.startsWith(`${route}/`)
+  // Verificar si la ruta es pública
+  const currentPathname = event.url.pathname;
+  const isRoutePublic = Array.from(PUBLIC_ROUTES).some(route => 
+    currentPathname === route || 
+    currentPathname.startsWith(route) ||
+    currentPathname.startsWith('/api/auth/')
   );
-  
-  // Manejar rutas de API
-  if (pathname.startsWith('/api/') && !isPublicRoute) {
-    if (!event.locals.user) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          message: 'No autenticado' 
-        }), 
-        { 
-          status: 401,
-          headers: { 
-            'content-type': 'application/json',
-            'x-correlation-id': cid 
-          }
-        }
-      );
-    }
+
+  // Si la ruta no es pública y no hay usuario, redirigir al login
+  if (!isRoutePublic && !event.locals.user) {
+    const url = new URL('/auth/login', event.url.origin);
+    url.searchParams.set('redirectTo', event.url.pathname);
+    return new Response('Redirect', {
+      status: 302,
+      headers: { Location: url.toString() }
+    });
   }
 
-  // Procesar la solicitud
+  // Continuar con la solicitud
   const response = await resolve(event);
   
   // Agregar encabezados de seguridad
-  response.headers.set('x-correlation-id', cid);
   response.headers.set('x-content-type-options', 'nosniff');
   response.headers.set('x-frame-options', 'DENY');
   response.headers.set('x-xss-protection', '1; mode=block');

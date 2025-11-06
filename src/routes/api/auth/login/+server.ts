@@ -1,169 +1,109 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { compare } from 'bcryptjs';
 import { prisma } from '$lib/db/prisma';
 import { createSessionCookie } from '$lib/server/auth/utils';
+import { logError } from '$lib/server/utils/errorHandler';
 
-// Tipos para la respuesta de login
-type LoginResponse = {
-    success: boolean;
-    message: string;
-    user?: {
-        id: string;
-        email: string | null;
-        username: string;
-        roles: string[];
-    };
-};
-
-// Esquema de validación para el body de la petición
-const loginSchema = {
-    email: (value: string) => {
-        if (!value) return 'El correo electrónico es requerido';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Correo electrónico inválido';
-        return null;
-    },
-    password: (value: string) => {
-        if (!value) return 'La contraseña es requerida';
-        if (value.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
-        return null;
+class AuthenticationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'AuthenticationError';
     }
-};
+}
+
+interface UserSession {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+    dni: string;
+}
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
     try {
-        let email: string;
-        let password: string;
-        let rememberMe = false;
+        // 1. Obtener datos del formulario
+        const { email, password } = await request.json();
+        console.log('Login attempt:', { email });
 
-        const contentType = request.headers.get('content-type') || '';
-        
-        if (contentType.includes('application/json')) {
-            const data = await request.json();
-            email = data.email;
-            password = data.password;
-            rememberMe = data.rememberMe || false;
-        } else if (contentType.includes('multipart/form-data') || contentType.includes('application/x-www-form-urlencoded')) {
-            const formData = await request.formData();
-            email = formData.get('email') as string;
-            password = formData.get('password') as string;
-            rememberMe = formData.get('remember-me') === 'on';
-        } else {
-            return json(
-                { success: false, message: 'Content-Type must be application/json or multipart/form-data' },
-                { status: 400 }
-            );
+        if (!email || !password) {
+            throw new AuthenticationError('Email y contraseña son requeridos');
         }
 
-        // Validar campos
-        const emailError = loginSchema.email(email);
-        const passwordError = loginSchema.password(password);
-        
-        if (emailError || passwordError) {
-            return json(
-                { success: false, message: emailError || passwordError },
-                { status: 400 }
-            );
-        }
-
-        console.log('Attempting login for email:', email);
-        
-        // Buscar usuario por email o nombre de usuario
-        const user = await prisma.usuarios.findFirst({
-            where: {
-                OR: [
-                    { email: email },
-                    { usuario: email }  // También permite iniciar sesión con nombre de usuario
-                ]
-            },
-            include: {
-                clientes: { 
-                    select: { Id_Cliente: true },
-                    take: 1 
-                },
-                empleados: { 
-                    select: { Id_empleado: true },
-                    take: 1 
-                }
-            }
+        // 2. Buscar usuario
+        const user = await prisma.user.findFirst({
+            where: { email }
         });
-        
-        console.log('User found:', user ? 'Yes' : 'No');
 
-        // Validar credenciales sin revelar si el usuario existe
         if (!user) {
-            console.log('No user found with email/username:', email);
-            return json(
-                { success: false, message: 'Credenciales inválidas' },
-                { status: 401 }
-            );
+            console.log('No user found with email:', email);
+            throw new AuthenticationError('Credenciales inválidas');
         }
+
+        // 3. Comparar contraseñas (en producción, usar bcrypt o similar)
+        // NOTA: En un entorno de producción, NUNCA almacenes contraseñas en texto plano
+        // Este es solo un ejemplo básico y debe ser reemplazado con hashing seguro
+        const validPassword = user.password === password.trim();
         
-        const passwordMatch = await compare(password, user.clave);
-        if (!passwordMatch) {
-            console.log('Invalid password for user:', user.id);
-            return json(
-                { success: false, message: 'Credenciales inválidas' },
-                { status: 401 }
-            );
+        if (!validPassword) {
+            console.log('Invalid password for user:', email);
+            throw new AuthenticationError('Credenciales inválidas');
         }
 
-        // Verificar si el usuario está activo
-        if (!user.activo) {
-            return json(
-                { success: false, message: 'Usuario inactivo' },
-                { status: 403 }
-            );
-        }
-
-        // Verificar que tenga al menos un perfil (Cliente o Empleado)
-        const hasProfile = user.clientes.length > 0 || user.empleados.length > 0;
-        if (!hasProfile) {
-            return json(
-                { success: false, message: 'Usuario sin perfil asociado (Cliente/Empleado)' },
-                { status: 403 }
-            );
-        }
-
-        // Obtener roles del usuario
-        const roles = [user.rol];
-        const userId = user.id.toString(); 
-
-        // Crear el token de sesión (asumiendo que el usuario tiene una propiedad sessionVersion)
-        const sessionCookie = await createSessionCookie(userId, user.sessionVersion || 1, roles);
+        // 4. Crear sesión
+        // Convertir el ID a string si es necesario
+        const userId = user.id;
+        // Usamos 1 como versión de sesión inicial
+        const sessionCookie = await createSessionCookie(userId.toString(), 1, [user.role]);
         
-        // Crear la respuesta primero
-        const response = json({
-        success: true,
-    message: 'Inicio de sesión exitoso',
-    user: {
-        id: user.id.toString(),  // Changed from userId to user.id
-        email: user.email,
-        username: user.usuario,
-        roles: [user.rol]
-    }
-});
-
-        // Establecer la cookie en la respuesta
-        const cookieOptions = {
+        cookies.set(sessionCookie.name, sessionCookie.value, {
             path: '/',
             httpOnly: true,
+            sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax' as const,
-            maxAge: 60 * 60 * 24 * 7, // 7 days
-            // No especificar el dominio para que funcione en localhost
-        };
-        
-        console.log('Setting session cookie with options:', cookieOptions);
-        cookies.set(sessionCookie.name, sessionCookie.value, cookieOptions);
+            maxAge: 60 * 60 * 24 * 7 // 1 semana
+        });
 
-        return response;
-    } catch (error) {
-        console.error('Login error:', error);
+        // 5. Devolver datos del usuario (sin información sensible)
+        const userData: UserSession = {
+            id: userId,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            dni: user.dni
+        };
+
+        return json({
+            success: true,
+            user: userData
+        });
+
+    } catch (error: unknown) {
+        if (error instanceof AuthenticationError) {
+            return json(
+                { success: false, message: error.message },
+                { status: 401 }
+            );
+        }
         
-        // Manejo de errores genérico
+        // Registrar el error en el servidor
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        
+        await logError({
+            error: new Error(errorMessage),
+            context: 'Login failed',
+            metadata: { email: 'user@example.com' }
+        });
+        
         return json(
-            { success: false, message: errorMessage },
+            { 
+                success: false, 
+                message: 'Error en el servidor',
+                // En desarrollo, incluir más detalles del error
+                ...(process.env.NODE_ENV === 'development' && { 
+                    error: errorMessage,
+                    stack: errorStack
+                })
+            },
             { status: 500 }
         );
     }
