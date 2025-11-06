@@ -8,20 +8,29 @@ datasource db {
 }
 
 enum Rol {
-  admin
-  operador
-  mozo
-  cliente
+  ADMIN
+  EMPLEADO
+  CLIENTE
+}
+
+model Perfiles {
+  Id_Perfil     Int        @id @default(autoincrement())
+  NombrePerfil  String     @db.VarChar(50)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  usuarios      Usuarios[] @relation("UsuarioPerfil")
 }
 
 model Fotos {
-  Id_Foto   Int        @id @default(autoincrement())
-  Ruta      String     @db.VarChar(255)
-  Tipo      String     @db.VarChar(100)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  Platos    Platos[]
-  Usuarios  Usuarios[]
+  id            Int            @id @default(autoincrement())
+  url           String
+  tipo          String         @db.VarChar(50)
+  nombre        String
+  usuarios      Usuarios[]
+  platos        Platos[]
+  cartaDetalles CartaDetalle[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Estados {
@@ -57,52 +66,87 @@ model TipoPlato {
 }
 
 model Personas {
-  Id_Persona Int         @id @default(autoincrement())
-  dni        String      @db.VarChar(15)
-  nombres    String      @db.VarChar(100)
-  Apellidos  String      @db.VarChar(100)
+  Id_Persona Int      @id @default(autoincrement())
+  dni        String   @unique @db.VarChar(15)
+  nombres    String   @db.VarChar(100)
+  Apellidos  String   @db.VarChar(100)
   genero     Int
-  Telefono   String      @db.VarChar(15)
-  email      String?     @db.VarChar(100)
-  direccion  String?     @db.VarChar(255)
-  rol        Rol         @default(cliente)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  Clientes   Clientes[]
-  Empleados  Empleados[]
+  Telefono   String   @db.VarChar(15)
+  email      String?  @db.VarChar(100)
+  direccion  String?  @db.VarChar(255)
+  rol        Rol      @default(CLIENTE)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  Clientes  Clientes[]
+  Empleados Empleados[]
+
+  // Indexes
+  @@index([dni])
+  @@index([email])
+  @@index([rol])
 }
 
 model Usuarios {
-  Id_usuario         Int         @id @default(autoincrement())
-  usuario            String      @db.VarChar(100)
-  clave              String      @db.VarChar(255)
-  email              String?     @db.VarChar(255)
-  activo             Boolean     @default(true)
-  ultimoAcceso       DateTime?
-  createdAt          DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  Fotos_Id_Foto  Int?
-  sessionVersion Int         @default(1)
-  Cartas         Cartas[]
-  Clientes       Clientes[]
-  Empleados      Empleados[]
-  Fotos          Fotos?      @relation(fields: [Fotos_Id_Foto], references: [Id_Foto])
+  id              Int       @id @default(autoincrement())
+  usuario         String    @unique @db.VarChar(100)
+  clave           String    @db.VarChar(255)
+  email           String?   @unique @db.VarChar(255)
+  emailVerificado Boolean   @default(false)
+  rol             Rol       @default(CLIENTE)
+  activo          Boolean   @default(true)
+  ultimoAcceso    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  fotoId          Int?
+  sessionVersion  Int    @default(1)
+  perfilId        Int?      @map("perfil_id")
+  perfil          Perfiles? @relation("UsuarioPerfil", fields: [perfilId], references: [Id_Perfil], onDelete: SetNull, onUpdate: Cascade)
+
+  // Relations
+  foto                    Fotos?                   @relation(fields: [fotoId], references: [id])
+  cartas                  Cartas[]
+  clientes                Clientes[]
+  empleados               Empleados[]
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+
+  // Indexes
+  @@index([email])
+  @@index([rol])
+  @@index([usuario])
 }
 
 model Empleados {
-  Id_empleado         Int      @id @default(autoincrement())
+  Id_empleado         Int @id @default(autoincrement())
   Personas_Id_Persona Int
-  Usuarios_Id_usuario Int
-  Personas            Personas @relation(fields: [Personas_Id_Persona], references: [Id_Persona])
-  Usuarios            Usuarios @relation(fields: [Usuarios_Id_usuario], references: [Id_usuario])
+  usuarioId           Int
+
+  // Relations
+  persona Personas @relation(fields: [Personas_Id_Persona], references: [Id_Persona], onDelete: Cascade)
+  usuario Usuarios @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@unique([Personas_Id_Persona, usuarioId])
+  @@index([Personas_Id_Persona])
+  @@index([usuarioId])
 }
 
 model Clientes {
-  Id_Cliente          Int      @id @default(autoincrement())
+  Id_Cliente          Int @id @default(autoincrement())
   Personas_Id_Persona Int
-  Usuarios_Id_usuario Int
-  Personas            Personas @relation(fields: [Personas_Id_Persona], references: [Id_Persona])
-  Usuarios            Usuarios @relation(fields: [Usuarios_Id_usuario], references: [Id_usuario])
+  usuarioId           Int
+
+  // Relations
+  persona Personas @relation(fields: [Personas_Id_Persona], references: [Id_Persona], onDelete: Cascade)
+  usuario Usuarios @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@unique([Personas_Id_Persona, usuarioId])
+  @@index([Personas_Id_Persona])
+  @@index([usuarioId])
 }
 
 model Platos {
@@ -113,8 +157,8 @@ model Platos {
   Activo                      Boolean                       @default(true)
   createdAt                   DateTime                      @default(now())
   updatedAt                   DateTime                      @updatedAt
-  Fotos_Id_Foto               Int?
-  Fotos                       Fotos?                        @relation(fields: [Fotos_Id_Foto], references: [Id_Foto])
+  fotoId                      Int?
+  foto                        Fotos?                        @relation(fields: [fotoId], references: [id])
   Platos_has_MenuEspTipoPlato Platos_has_MenuEspTipoPlato[]
 }
 
@@ -158,8 +202,24 @@ model CartaDetalle {
   idCartaDetalle                            Int                         @id @default(autoincrement())
   Platos_has_MenuEspTipoPlato_Id_PlatoCarta String
   Cartas_idCartas                           Int
-  Cartas                                    Cartas                      @relation(fields: [Cartas_idCartas], references: [idCartas], onDelete: Cascade)
+  fotoId                                    Int?
+  foto                                      Fotos?                      @relation(fields: [fotoId], references: [id], onDelete: SetNull)
+  cartas                                    Cartas                      @relation(fields: [Cartas_idCartas], references: [idCartas])
   Platos_has_MenuEspTipoPlato               Platos_has_MenuEspTipoPlato @relation(fields: [Platos_has_MenuEspTipoPlato_Id_PlatoCarta], references: [Id_PlatoCarta])
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      Usuarios @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+  @@index([userId])
 }
 
 model Cartas {
@@ -171,8 +231,10 @@ model Cartas {
   createdAt           DateTime       @default(now())
   updatedAt           DateTime
   Usuarios_Id_usuario Int
-  CartaDetalle        CartaDetalle[]
-  Usuarios            Usuarios       @relation(fields: [Usuarios_Id_usuario], references: [Id_usuario])
+  cartaDetalles       CartaDetalle[]
+  usuario             Usuarios       @relation(fields: [Usuarios_Id_usuario], references: [id])
+
+  @@index([Usuarios_Id_usuario])
 }
 
 model Platos_has_MenuEspTipoPlato {
@@ -182,4 +244,31 @@ model Platos_has_MenuEspTipoPlato {
   CartaDetalle                         CartaDetalle[]
   MenuEspTipoPlato                     MenuEspTipoPlato @relation(fields: [MenuEspTipoPlato_Id_MenuEspTipoPlato], references: [Id_MenuEspTipoPlato])
   Platos                               Platos           @relation(fields: [Platos_Id_Plato], references: [Id_Plato])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      Usuarios @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userAgent String?
+  ipAddress String?
+  isRevoked Boolean  @default(false)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int      @unique
+  user      Usuarios @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
 }

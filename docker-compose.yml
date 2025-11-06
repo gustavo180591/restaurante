@@ -1,32 +1,22 @@
 version: '3.8'
 
 services:
-  # Web Application
   web:
-    build: 
-      context: .
-      target: deps
-    container_name: restaurante_web
-    restart: unless-stopped
+    build: .
     ports:
-      - "8000:8000"
+      - "3000:3000"
     volumes:
       - .:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/restaurante?schema=public
-    command: sh -c "npm install && npm run dev"
+      - DATABASE_URL=postgresql://postgres:postgres@db:5474/restaurante?schema=public
     depends_on:
       - db
-    networks:
-      - restaurante_network
+    command: sh -c "npm install && npm run dev"
 
-  # Database Service
   db:
     image: postgres:15-alpine
-    container_name: restaurante_db
-    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -34,29 +24,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5474:5432"  # Mapped to 5474 to match your .env file
-    networks:
-      - restaurante_network
+      - "5474:5432"
 
-  # Optional: PGAdmin for database management (uncomment if needed)
-  # pgadmin:
-  #   image: dpage/pgadmin4
-  #   container_name: restaurante_pgadmin
-  #   environment:
-  #     PGADMIN_DEFAULT_EMAIL: admin@example.com
-  #     PGADMIN_DEFAULT_PASSWORD: admin
-  #   ports:
-  #     - "5050:80"
-  #   depends_on:
-  #     - db
-  #   networks:
-  #     - restaurante_network
-
-# Volumes
 volumes:
   postgres_data:
-
-# Networks
-networks:
-  restaurante_network:
-    driver: bridge

@@ -1,62 +1,57 @@
 <script lang="ts">
-    import { enhance } from '$app/forms';
     import { onMount } from 'svelte';
     
-    // UI State
-    let showPassword = false;
+    let email = '';
     let password = '';
-    let error: string | null = null;
-    let loading = false;
     let rememberMe = false;
-
+    let showPassword = false;
+    let loading = false;
+    let errorMsg: string | null = null;
+    
     // Check if user is already logged in
     onMount(async () => {
         try {
             const response = await fetch('/api/auth/me');
             if (response.ok) {
-                // User is already logged in, redirect to home
                 window.location.href = '/';
             }
         } catch (error) {
-            if (error instanceof Error) {
-                console.error('Error checking auth status:', error.message);
-            } else {
-                console.error('An unknown error occurred while checking auth status');
-            }
+            console.error('Error checking auth status:', error instanceof Error ? error.message : 'Unknown error');
         }
     });
-
-    async function handleSubmit({ formData, action, formElement, controller, cancel }: {
-        formData: FormData;
-        action: URL;
-        formElement: HTMLFormElement;
-        controller: AbortController;
-        cancel: () => void;
-    }) {
+    
+    async function handleSubmit(e: SubmitEvent) {
+        e.preventDefault();
         loading = true;
-        error = null;
-
+        errorMsg = null;
+    
         try {
-            const response = await fetch('/api/auth/login', {
+            const res = await fetch('/api/auth/login', {
                 method: 'POST',
-                body: formData
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, rememberMe })
             });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.message || 'Error de autenticación');
+    
+            if (!res.ok) {
+                let msg = 'Error de autenticación';
+                try {
+                    const data = await res.json();
+                    if (data?.message) msg = data.message;
+                } catch {}
+                errorMsg = `${msg} (${res.status})`;
+                return;
             }
-
-            // Redirect to home or intended page
-            window.location.href = '/';
-        } catch (error) {
-            if (error instanceof Error) {
-                error = error.message;
+    
+            // Verify session is set
+            const me = await fetch('/api/auth/me');
+            if (me.ok) {
+                window.location.href = '/';
             } else {
-                error = 'Error al iniciar sesión';
+                errorMsg = 'Error al verificar la sesión';
             }
-            console.error('Login error:', error);
+        } catch (err) {
+            console.error('Login error:', err);
+            errorMsg = 'No se pudo conectar con el servidor';
         } finally {
             loading = false;
         }
@@ -81,22 +76,22 @@
             </p>
         </div>
 
-        {#if error}
-            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+        {#if errorMsg}
+            <div class="p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
                 <div class="flex">
                     <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <svg class="w-5 h-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
                         </svg>
                     </div>
                     <div class="ml-3">
-                        <p class="text-sm text-red-700">{error}</p>
+                        <p class="text-sm text-red-700">{errorMsg}</p>
                     </div>
                 </div>
             </div>
         {/if}
 
-        <form method="POST" class="mt-8 space-y-6" action="?/login" use:enhance={handleSubmit}>
+        <form on:submit|preventDefault={handleSubmit} class="mt-8 space-y-6">
             <div class="space-y-4">
                 <div class="space-y-1">
                     <label for="usuario" class="block text-sm font-medium text-gray-700">Usuario</label>
@@ -107,18 +102,21 @@
                             </svg>
                         </div>
                         <input
-                            id="usuario"
-                            name="usuario"
-                            type="text"
+                            id="email"
+                            name="email"
+                            type="email"
                             required
-                            class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
-                            placeholder="usuario123"
+                            class="block w-full py-2 pl-10 pr-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                            placeholder="usuario@ejemplo.com"
+                            autocomplete="username"
+                            bind:value={email}
+                            disabled={loading}
                         />
                     </div>
                 </div>
 
                 <div class="space-y-1">
-                    <label for="clave" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -126,14 +124,15 @@
                             </svg>
                         </div>
                         <input
-                            id="clave"
-                            name="clave"
-                            bind:value={password}
+                            id="password"
+                            name="password"
                             type={showPassword ? 'text' : 'password'}
                             required
-                            minlength="6"
-                            class="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
+                            class="block w-full py-2 pl-10 pr-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 sm:text-sm"
                             placeholder="••••••••"
+                            bind:value={password}
+                            autocomplete="current-password"
+                            disabled={loading}
                         />
                         <button
                             type="button"
@@ -161,8 +160,9 @@
                             id="remember-me"
                             name="remember-me"
                             type="checkbox"
+                            class="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
                             bind:checked={rememberMe}
-                            class="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                            disabled={loading}
                         />
                         <label for="remember-me" class="ml-2 block text-sm text-gray-900">
                             Recordarme
@@ -170,7 +170,7 @@
                     </div>
 
                     <div class="text-sm">
-                        <a href="/recuperar-contrasena" class="font-medium text-amber-600 hover:text-amber-500 hover:underline">
+                        <a href="/recuperar-contrasena" class="font-medium text-amber-600 hover:text-amber-500">
                             ¿Olvidaste tu contraseña?
                         </a>
                     </div>

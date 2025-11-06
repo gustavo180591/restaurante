@@ -262,7 +262,7 @@ services:
       POSTGRES_PASSWORD: app
       POSTGRES_DB: appdb
     ports:
-      - "5432:5432"
+      - "5474:5474"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -277,7 +277,7 @@ services:
       dockerfile: docker/Dockerfile
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://app:app@db:5432/appdb?schema=public
+      DATABASE_URL: postgresql://app:app@db:5474/appdb?schema=public
       PORT: 3000
       STORAGE_DRIVER: disk
       DISK_UPLOAD_DIR: /app/storage/uploads
@@ -316,7 +316,7 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 ### 3.3 `.env.example`
 ```
-DATABASE_URL="postgresql://app:app@localhost:5432/appdb?schema=public"
+DATABASE_URL="postgresql://app:app@localhost:5474/appdb?schema=public"
 
 # Storage
 STORAGE_DRIVER="disk"                # o "s3"

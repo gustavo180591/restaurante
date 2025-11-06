@@ -1,119 +1,109 @@
+import { json } from '@sveltejs/kit';
 import { prisma } from '$lib/db/prisma';
 import type { RequestHandler } from './$types';
-import type { Rol } from '@prisma/client';
 
-export const GET: RequestHandler = async ({ locals }) => {
+type UserRole = 'ADMIN' | 'EMPLEADO' | 'CLIENTE';
+
+interface UserResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    id: number;
+    usuario: string;
+    email: string | null;
+    activo: boolean;
+    ultimoAcceso: Date | null;
+    rol: UserRole;
+    esCliente: boolean;
+    esEmpleado: boolean;
+    clienteId: number | null;
+    empleadoId: number | null;
+  };
+  error?: string;
+}
+
+export const GET: RequestHandler = async ({ locals }): Promise<Response> => {
+  // Check if user is authenticated
   if (!locals.user) {
-    return new Response(
-      JSON.stringify({ error: 'No autenticado' }), 
-      { status: 401, headers: { 'content-type': 'application/json' } }
+    return json(
+      { success: false, message: 'No autenticado' } as UserResponse,
+      { status: 401 }
     );
   }
 
   try {
+    // Convert string ID to number
+    const userId = parseInt(locals.user.id);
+    if (isNaN(userId)) {
+      return json(
+        { success: false, message: 'ID de usuario inválido' } as UserResponse,
+        { status: 400 }
+      );
+    }
+
     // Get user with their related data
     const user = await prisma.usuarios.findUnique({
-      where: { Id_usuario: locals.user.id },
+      where: { id: userId },
       include: {
-        Fotos: {
-          select: {
-            Id_Foto: true,
-            Ruta: true
-          }
+        clientes: {
+          select: { Id_Cliente: true },
+          take: 1
         },
-        Clientes: {
-          include: {
-            Personas: {
-              select: {
-                Id_Persona: true,
-                nombres: true,
-                Apellidos: true,
-                rol: true,
-                email: true,
-                Telefono: true,
-                direccion: true
-              }
-            }
-          }
-        },
-        Empleados: {
-          include: {
-            Personas: {
-              select: {
-                Id_Persona: true,
-                nombres: true,
-                Apellidos: true,
-                rol: true,
-                email: true,
-                Telefono: true,
-                direccion: true
-              }
-            }
-          }
+        empleados: {
+          select: { Id_empleado: true },
+          take: 1
         }
       }
     });
 
     if (!user) {
-      return new Response(
-        JSON.stringify({ error: 'Usuario no encontrado' }), 
-        { status: 404, headers: { 'content-type': 'application/json' } }
+      return json(
+        { success: false, message: 'Usuario no encontrado' } as UserResponse,
+        { status: 404 }
       );
     }
 
     // Update last access time
     await prisma.usuarios.update({
-      where: { Id_usuario: user.Id_usuario },
+      where: { id: userId },
       data: { ultimoAcceso: new Date() }
     });
 
-    // Get persona data from either Clientes or Empleados
-    const personaData = user.Clientes[0]?.Personas || user.Empleados[0]?.Personas;
+    // Determine user role based on what's available
+    const role: UserRole = (user.rol as UserRole) || 'CLIENTE';
     
-    // Determine the user's role
-    let role: Rol = 'cliente';
-    if (user.Empleados.length > 0) {
-      role = user.Empleados[0].Personas.rol;
-    } else if (user.Clientes.length > 0) {
-      role = user.Clientes[0].Personas.rol;
-    }
-    
-    return new Response(
-      JSON.stringify({
-        id: user.Id_usuario,
+    // Prepare response data
+    const response: UserResponse = {
+      success: true,
+      data: {
+        id: user.id,
         usuario: user.usuario,
-        email: user.email || (personaData?.email || null),
+        email: user.email,
         activo: user.activo,
         ultimoAcceso: user.ultimoAcceso,
         rol: role,
-        personaId: personaData?.Id_Persona || null,
-        nombres: personaData?.nombres || null,
-        apellidos: personaData?.Apellidos || null,
-        telefono: personaData?.Telefono || null,
-        direccion: personaData?.direccion || null
-      }),
-      { 
-        status: 200, 
-        headers: { 
-          'content-type': 'application/json',
-          'cache-control': 'no-store, max-age=0'
-        } 
+        esCliente: user.clientes?.length > 0 || false,
+        esEmpleado: user.empleados?.length > 0 || false,
+        clienteId: user.clientes?.[0]?.Id_Cliente || null,
+        empleadoId: user.empleados?.[0]?.Id_empleado || null
       }
-    );
+    };
+    
+    return json(response, { 
+      status: 200,
+      headers: { 'cache-control': 'no-store, max-age=0' }
+    });
   } catch (error) {
     console.error('Error fetching user:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: 'Error al obtener los datos del usuario',
-        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
-      }), 
-      { 
-        status: 500, 
-        headers: { 
-          'content-type': 'application/json',
-          'cache-control': 'no-store, max-age=0'
-        } 
-      }
-    );
+    const errorResponse: UserResponse = {
+      success: false,
+      message: 'Error al obtener los datos del usuario'
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+      errorResponse.error = error instanceof Error ? error.message : 'Error desconocido';
+    }
+
+    return json(errorResponse, { status: 500 });
   }
 };

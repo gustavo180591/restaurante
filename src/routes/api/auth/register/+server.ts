@@ -3,6 +3,7 @@ import { prisma } from '$lib/db/prisma';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { rateLimit } from '$lib/security/rate-limit';
+import { createSessionToken } from '$lib/auth/session';
 import { createSession } from '$lib/server/auth/session';
 
 // Configuración de rate limiting
@@ -122,7 +123,7 @@ export const POST: RequestHandler = async (event) => {
           Telefono: telefono,
           genero,
           direccion: direccion || null,
-          rol: rol // Use the role from above
+          rol: 'CLIENTE', // Use the role from above
         }
       });
 
@@ -136,28 +137,34 @@ export const POST: RequestHandler = async (event) => {
           activo: true, // Ensure user is active by default
           sessionVersion: 1, // Start session version
           // Remove any reference to Perfiles_Id_Perfil
-          Fotos_Id_Foto: null // Explicitly set to null as it's optional
+           fotoId: null,  // Explicitly set to null as it's optional
         }
       });
 
       // Crear el cliente que vincula persona y usuario
       const cliente = await tx.clientes.create({
         data: {
-          Personas_Id_Persona: persona.Id_Persona,
-          Usuarios_Id_usuario: user.Id_usuario
+           Personas_Id_Persona: persona.Id_Persona,
+        usuarioId: user.id  
         }
       });
 
       // Create session for the new user
-      const session = await createSession(user.Id_usuario, event);
-      
+    const sessionToken = createSessionToken({
+      id: user.id,
+      role: user.rol as 'Admin' | 'Operador' | 'Mozo',
+    email: user.email || undefined,
+      userAgent: event.request.headers.get('user-agent') || '',
+      ip: event.getClientAddress(),
+      sessionVersion: user.sessionVersion || 1
+    });
       // Get user data for the response
       const userData = {
-        id: user.Id_usuario,
-        email: user.email,
-        usuario: user.usuario,
-        rol: rol
-      };
+  id: user.id,  // Changed from user.Id_usuario to user.id
+  email: user.email,
+  usuario: user.usuario,
+  rol: rol
+};
       
       // Return the response with session cookie
       const response = json(
@@ -173,8 +180,12 @@ export const POST: RequestHandler = async (event) => {
         }
       );
       
-      // Set the session cookie
-      response.headers.append('Set-Cookie', session.cookie);
+      // Set the session cookie with proper attributes
+      response.headers.set(
+        'Set-Cookie',
+        `session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax` + 
+        (process.env.NODE_ENV === 'production' ? '; Secure' : '')
+      );
       
       return response;
     });

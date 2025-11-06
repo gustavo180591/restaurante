@@ -23,7 +23,7 @@ cp .env.example .env.production
 **Variables críticas para producción:**
 ```env
 NODE_ENV=production
-DATABASE_URL=postgresql://usuario:password@db:5432/restaurantedb?schema=public
+DATABASE_URL=postgresql://usuario:password@db:5474/restaurantedb?schema=public
 STORAGE_DRIVER=disk  # o "s3" para producción
 DISK_UPLOAD_DIR=./storage/uploads
 PORT=3000
@@ -153,7 +153,7 @@ docker compose -f docker/docker-compose.yml up -d --build
 ```bash
 # Exponer solo puertos necesarios
 docker compose -f docker/docker-compose.yml up -d
-# No exponer puerto de base de datos (5432) al exterior
+# No exponer puerto de base de datos (5474) al exterior
 ```
 
 ### 3. SSL/TLS
