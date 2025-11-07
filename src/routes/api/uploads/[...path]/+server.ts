@@ -1,7 +1,8 @@
 // src/routes/api/uploads/[...path]/+server.ts
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { STORAGE_DRIVER, UPLOAD_DIR } from '$env/static/private';
+const STORAGE_DRIVER = process.env.STORAGE_DRIVER || 'local';
+const UPLOAD_DIR = process.env.UPLOAD_DIR || './static/uploads';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

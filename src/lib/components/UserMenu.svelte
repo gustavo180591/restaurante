@@ -6,7 +6,7 @@
     let user = $derived($page.data.user);
     
     // Estado para controlar la visibilidad del menú
-    let isOpen = false;
+    let isOpen = $state(false);
     
     // Función para alternar la visibilidad del menú
     function toggleMenu() {
@@ -56,8 +56,8 @@
 <div class="relative">
     <!-- Botón del perfil -->
     <button
-        on:click={toggleMenu}
-        on:keydown={(e) => e.key === 'Enter' && toggleMenu()}
+        onclick={toggleMenu}
+        onkeydown={(e) => e.key === 'Enter' && toggleMenu()}
         class="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 text-amber-800 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
         aria-haspopup="true"
         aria-expanded={isOpen}
@@ -80,7 +80,8 @@
             aria-orientation="vertical"
             aria-labelledby="user-menu-button"
             tabindex="-1"
-            on:click|self={closeMenu}
+            onclick={(e) => e.target === e.currentTarget && closeMenu()}
+            onkeydown={(e) => e.key === 'Escape' && closeMenu()}
         >
             <div class="px-4 py-3 border-b border-gray-100">
                 <p class="text-sm text-gray-900 font-medium truncate">
@@ -97,7 +98,7 @@
                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     role="menuitem"
                     tabindex="-1"
-                    on:click={closeMenu}
+                    onclick={closeMenu}
                 >
                     Mi Perfil
                 </a>
@@ -106,7 +107,7 @@
                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     role="menuitem"
                     tabindex="-1"
-                    on:click={closeMenu}
+                    onclick={closeMenu}
                 >
                     Mis Pedidos
                 </a>
@@ -115,7 +116,7 @@
                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     role="menuitem"
                     tabindex="-1"
-                    on:click={closeMenu}
+                    onclick={closeMenu}
                 >
                     Configuración
                 </a>
@@ -123,7 +124,7 @@
             
             <div class="py-1 border-t border-gray-100" role="none">
                 <button
-                    on:click={logout}
+                    onclick={logout}
                     class="block w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-gray-100"
                     role="menuitem"
                     tabindex="-1"
@@ -139,19 +140,12 @@
 {#if isOpen}
     <div 
         class="fixed inset-0 z-40"
-        on:click={closeMenu}
+        onclick={closeMenu}
         role="presentation"
         tabindex="-1"
     ></div>
 {/if}
 
 <style>
-    /* Animación para el menú desplegable */
-    .fade-enter-active, .fade-leave-active {
-        transition: opacity 0.2s, transform 0.2s;
-    }
-    .fade-enter-from, .fade-leave-to {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
+    /* Animation styles removed as they were unused */
 </style>

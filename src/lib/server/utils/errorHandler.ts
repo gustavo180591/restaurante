@@ -1,20 +1,37 @@
 import type { HttpError } from '@sveltejs/kit';
 
-type ErrorWithMessage = {
+type ErrorWithMessage = Error & {
   message: string;
   cause?: unknown;
   stack?: string;
+  name: string;
 };
 
 export class AppError extends Error implements HttpError {
+  status: number;
+  code?: string;
+  details?: Record<string, unknown>;
+  body: any;
+  
   constructor(
     message: string,
-    public status: number = 500,
-    public code?: string,
-    public details?: Record<string, unknown>
+    status: number = 500,
+    code?: string,
+    details?: Record<string, unknown>
   ) {
     super(message);
+    this.status = status;
+    this.code = code || 'INTERNAL_SERVER_ERROR';
+    this.details = details;
     this.name = this.constructor.name;
+    this.body = {
+      success: false,
+      error: {
+        code: this.code,
+        message: this.message,
+        ...(this.details && { details: this.details })
+      }
+    };
     Error.captureStackTrace?.(this, this.constructor);
   }
 
@@ -78,15 +95,21 @@ export function logError(error: unknown, context: Record<string, unknown> = {}) 
   const errorWithMessage = toErrorWithMessage(error);
   const stack = getErrorStack(error);
   
+  const errorObject: Record<string, unknown> = {
+    name: errorWithMessage.name,
+    message: errorWithMessage.message,
+    stack,
+    ...(errorWithMessage.cause && { cause: errorWithMessage.cause })
+  };
+
+  // Only spread context if it's a non-empty object
+  if (context && typeof context === 'object' && Object.keys(context).length > 0) {
+    Object.assign(errorObject, context);
+  }
+  
   console.error({
     timestamp: new Date().toISOString(),
-    error: {
-      name: errorWithMessage.name,
-      message: errorWithMessage.message,
-      stack,
-      ...(errorWithMessage.cause && { cause: errorWithMessage.cause }),
-      ...context
-    }
+    error: errorObject
   });
 }
 

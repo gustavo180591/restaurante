@@ -21,8 +21,22 @@ interface UserSession {
 export const POST: RequestHandler = async ({ request, cookies }) => {
     try {
         // 1. Obtener datos del formulario
-        const { email, password } = await request.json();
-        console.log('Login attempt:', { email });
+        console.log('Headers:', Object.fromEntries(request.headers.entries()));
+        const requestBody = await request.text();
+        console.log('Raw request body:', requestBody);
+        
+        let email: string | undefined;
+        let password: string | undefined;
+        
+        try {
+            const data = JSON.parse(requestBody);
+            email = data.email;
+            password = data.password;
+            console.log('Parsed login data:', { email: email ? 'present' : 'missing', password: password ? 'present' : 'missing' });
+        } catch (parseError) {
+            console.error('Error parsing request body:', parseError);
+            throw new AuthenticationError('Formato de solicitud inválido');
+        }
 
         if (!email || !password) {
             throw new AuthenticationError('Email y contraseña son requeridos');

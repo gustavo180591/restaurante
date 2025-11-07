@@ -90,8 +90,10 @@
       // Redirect to login with success message
       goto('/login?registered=true');
     } catch (err) {
-      error = err.message || 'Error en el registro. Por favor, inténtalo de nuevo.';
       console.error('Registration error:', err);
+      error = err instanceof Error 
+        ? err.message 
+        : 'Error en el registro. Por favor, inténtalo de nuevo.';
     } finally {
       loading = false;
     }

@@ -1,7 +1,7 @@
 // src/routes/api/upload/+server.ts
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { UPLOAD_DIR } from '$env/static/private';
+const UPLOAD_DIR = process.env.UPLOAD_DIR || './static/uploads';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

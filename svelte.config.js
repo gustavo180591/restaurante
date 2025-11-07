@@ -1,5 +1,7 @@
 import adapter from '@sveltejs/adapter-auto';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { defineConfig } from 'vite';
+import { sveltekit } from '@sveltejs/kit/vite';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -13,5 +15,11 @@ const config = {
 		adapter: adapter()
 	}
 };
+export default defineConfig({
+  plugins: [sveltekit()],
+  define: {
+    'process.env.UPLOAD_DIR': JSON.stringify(process.env.UPLOAD_DIR || './static/uploads'),
+    'process.env.STORAGE_DRIVER': JSON.stringify(process.env.STORAGE_DRIVER || 'local')
+  }
+});
 
-export default config;
